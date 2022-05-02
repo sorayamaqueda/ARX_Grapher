@@ -19,8 +19,8 @@ matplotlib.use('TkAgg')
 # Global Contro Variables
 defaultSize = (20, 1)
 
-numA = 0 # Number of a's coefficients
-numB = 0 # Number of b's coefficients
+numA = 1 # Number of a's coefficients
+numB = 1 # Number of b's coefficients
 numY = 0 # Number of outputs
 numU = 0 # Number of inputs
 
@@ -95,6 +95,16 @@ layout = [
     [sg.Text('ARX Graphic')],
     [sg.Canvas(key='-CANVAS-')],
     [sg.Button('Close')],
+    #Coeffiecients
+    [sg.Text('Coefficients')],
+    [sg.Text('a')],
+    [sg.Input(do_not_clear=True, key='_INA_')],
+    [sg.Button('Add a'), sg.Button('Delete a')],
+    *[[sg.Text('a' + str(i)), sg.InputText(),] for i in range(numA)],
+    [sg.Text('b')],
+    [sg.Input(do_not_clear=True, key='_INB_')],
+    [sg.Button('+'), sg.Button('-')],
+    *[[sg.Text('b' + str(i)), sg.InputText(),] for i in range(numB)],
     # Input Values
     [sg.Text('Enter Values')],
     [sg.Text('Constant (k)', size=defaultSize), sg.InputText(key='-k-')],
@@ -109,7 +119,7 @@ layout = [
 window = sg.Window(
     'ARX Graphic', # Window Title
     layout, # Window Layout
-    location=(0, 0),
+    location=(600, 600),
     finalize=True,
     element_justification='center',
     font='Helvetica 18'
@@ -134,6 +144,14 @@ while True:
     if event == 'Submit':
         values=['-k-', '-T-', '-tPrime-', '-d-', '-t-']
         an(values['-T-'], values['-t-'])
+
+    if event == 'Add a' or event == 'Delete a':
+        numA += -1 if event == 'Delete a' else 1
+
+        windowTemp = sg.Window('ARX Model', location=(600, 600),
+        finalize=True, element_justification='center', font='Helvetica 18').Layout(layout)
+        window.Close()
+        window = windowTemp
 
 window.close()
 
