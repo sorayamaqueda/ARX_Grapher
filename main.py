@@ -1,3 +1,11 @@
+# MR1007 - Control Computarizado
+# ITESM Campus Monterrey
+# Dr. Antonio Favela
+
+# A01411195 - Soraya Lizeth Maqueda Gutiérrez
+# A00
+# A00
+
 import PySimpleGUI as sg # Graphic Interface Library
 import numpy as np # Math Library
 import pandas as pd # Data Analysis Library
@@ -9,7 +17,7 @@ from math import e, trunc
 matplotlib.use('TkAgg')
 
 # Global Contro Variables
-defaultSize = (15, 1)
+defaultSize = (20, 1)
 
 numA = 0 # Number of a's coefficients
 numB = 0 # Number of b's coefficients
@@ -24,7 +32,7 @@ def draw_figure(canvas, figure):
 
     return figure_canvas_agg
 
-################### ARX Mode ###################
+################### ARX Model ###################
 
 # Case Determiner
 def case(d, T):
@@ -37,12 +45,11 @@ def case(d, T):
         # Case 2: there's a delay theta
         return False
 
-def a(T, tao):
-    a1 = e**(-T /tao)
-    print(a1)
+def an(T, tao):
+    return e**(-T /tao)
 
-def b(T, tao, k):
-    b1 = k*(1-(e**(-T/tao)))
+def bn(T, tao, k):
+    return k*(1-(e**(-T/tao)))
 
 # Delay
 def d(tPrime, T):
@@ -51,6 +58,21 @@ def d(tPrime, T):
 # Theta
 def t(tPrime, T, d):
     return tPrime-(d*T)
+
+# Theta Prime
+def tPrime(t, T, d):
+    return t+(d*T)
+
+# c[n] = a1*c[n-1] + b1*m[n-1-d]
+def cn(kMax, T, t, d, tao):
+    cn = []
+    a1 = an(T, tao)
+    for n in kMax:
+        b = bn(T, tao, n)
+        if cn[n-1]==None:  cn[n-1].append(0)
+        cn.append(a1*cn[n-1] + b*cn[n-1-d])
+    
+    return cn
 
 # Define the Layout
 layout = [
@@ -96,8 +118,7 @@ while True:
 
     if event == 'Submit':
         values=['-k-', '-T-', '-tPrime-', '-d-', '-t-']
-        print(values)
-        a(values['-T-'], values['-t-'])
+        an(values['-T-'], values['-t-'])
 
 window.close()
 
