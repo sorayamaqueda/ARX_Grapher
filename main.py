@@ -63,16 +63,31 @@ def t(tPrime, T, d):
 def tPrime(t, T, d):
     return t+(d*T)
 
+# Transfer Function
+def HGp(cn, mn):
+    return cn/mn
+
+def mn(k, t, T, z, d):
+    return k*(1-(e**(-T/t)))*(z**(-1-d))
+
+# Difference Equations
+
 # c[n] = a1*c[n-1] + b1*m[n-1-d]
-def cn(kMax, T, t, d, tao):
+def cn(kMax, T, d, tao):
     cn = []
     a1 = an(T, tao)
+    b1 = bn(T, tao, n)
+
     for n in kMax:
-        b = bn(T, tao, n)
-        if cn[n-1]==None:  cn[n-1].append(0)
-        cn.append(a1*cn[n-1] + b*cn[n-1-d])
+        if cn[n-1]==None:  cn[n-1].append(0) # If a value doesn't exists, we assume that it's 0
+        cn.append(a1*cn[n-1] + b1*cn[n-1-d])
     
     return cn
+
+# Equations' Table
+headers = { 'k': [], 'y(k)': [], 'u(k)': [] }
+
+table = pd.DataFrame(headers)
 
 # Define the Layout
 layout = [
