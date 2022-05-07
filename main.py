@@ -17,10 +17,10 @@ from math import e, trunc
 matplotlib.use('TkAgg')
 
 # Global Contro Variables
-defaultSize = (20, 1)
+defaultSize = (10, 1)
 
-numA = 1 # Number of a's coefficients
-numB = 1 # Number of b's coefficients
+numA = 0 # Number of a's coefficients
+numB = 0 # Number of b's coefficients
 numY = 0 # Number of outputs
 numU = 0 # Number of inputs
 
@@ -79,7 +79,9 @@ def cn(kMax, T, d, tao):
     b1 = bn(T, tao, n)
 
     for n in kMax:
-        if cn[n-1]==None:  cn[n-1].append(0) # If a value doesn't exists, we assume that it's 0
+        # If a value doesn't exists, 
+        # we assume that it's 0
+        if cn[n-1]==None:  cn[n-1].append(0)
         cn.append(a1*cn[n-1] + b1*cn[n-1-d])
     
     return cn
@@ -92,38 +94,35 @@ table = pd.DataFrame(headers)
 # Define the Layout
 layout = [
     # Canvas
-    [sg.Text('ARX Graphic')],
+    [sg.Text('Discrete Control Model Grapher')],
     [sg.Canvas(key='-CANVAS-')],
-    [sg.Button('Close')],
     #Coeffiecients
     [sg.Text('Coefficients')],
     [sg.Text('a')],
-    [sg.Input(do_not_clear=True, key='_INA_')],
-    [sg.Button('Add a'), sg.Button('Delete a')],
     *[[sg.Text('a' + str(i)), sg.InputText(),] for i in range(numA)],
+    [sg.Button('Add a'), sg.Button('Delete a')],
     [sg.Text('b')],
-    [sg.Input(do_not_clear=True, key='_INB_')],
-    [sg.Button('+'), sg.Button('-')],
     *[[sg.Text('b' + str(i)), sg.InputText(),] for i in range(numB)],
+    [sg.Button('Add b'), sg.Button('Delete b')],
     # Input Values
     [sg.Text('Enter Values')],
-    [sg.Text('Constant (k)', size=defaultSize), sg.InputText(key='-k-')],
-    [sg.Text('Delay (d)', size=defaultSize), sg.InputText(key='-d-')],
-    [sg.Text("\u03F4'", size=defaultSize), sg.InputText(key='-tPrime-')],
-    [sg.Text('Time Interval (T)', size=defaultSize), sg.InputText(key='-T-')],
-    [sg.Text('Time Constant (\u03F4)', size=defaultSize), sg.InputText(key='-t-')],
-    [sg.Button('Submit')]
+    [sg.Text('Constant (k)', size=defaultSize), sg.InputText(key='-k-', size=defaultSize), sg.Text('Delay (d)', size=defaultSize), sg.InputText(key='-d-', size=defaultSize)],
+    [sg.Text("\u03F4'", size=defaultSize), sg.InputText(key='-tPrime-', size=defaultSize), sg.Text('Time Interval (T)', size=defaultSize), sg.InputText(key='-T-', size=defaultSize)],
+    [sg.Text('Time Constant (\u03F4)', size=defaultSize), sg.InputText(key='-t-', size=defaultSize), sg.Text('m[k]'), sg.InputText(key='-mk-', size=defaultSize)],
+    [sg.Text('Input Disturbance', size=defaultSize), sg.InputText(key='-inputD-', size=defaultSize), sg.Text('Output Disturbance', size=defaultSize), sg.InputText(key='-outputD-', size=defaultSize)],
+    # Window Buttons
+    [sg.Button('Submit'), sg.Button('Close')]
 ]
 
 # Create the window
 window = sg.Window(
-    'ARX Graphic', # Window Title
-    layout, # Window Layout
-    location=(600, 600),
+    'Discrete Control Model', # Window Title
+    location=(0, 0),
     finalize=True,
     element_justification='center',
-    font='Helvetica 18'
-)
+    font='Helvetica 18',
+    size=(800, 800)
+).Layout(layout) # Window Layout
 
 # Graph
 fig = matplotlib.figure.Figure(figsize=(5, 4), dpi=100)
@@ -136,19 +135,44 @@ draw_figure(window['-CANVAS-'].TKCanvas, fig)
 # Create an event loop
 while True:
     event, values = window.read()
+    print(event, values)
     # End program if user closes window or
     # presses the Close button
     if event == 'Close' or event == sg.WIN_CLOSED:
         break
 
     if event == 'Submit':
-        values=['-k-', '-T-', '-tPrime-', '-d-', '-t-']
-        an(values['-T-'], values['-t-'])
+        # values=['-k-', '-T-', '-tPrime-', '-d-', '-t-']
+        # an(values['-T-'], values['-t-'])
+        print(values)
 
-    if event == 'Add a' or event == 'Delete a':
+    if event == 'Add a' or event == 'Delete a' or event == 'Add b' or event == 'Delete b':
         numA += -1 if event == 'Delete a' else 1
+        numB += -1 if event == 'Delte b' else 1
 
-        windowTemp = sg.Window('ARX Model', location=(600, 600),
+        layout = [
+            # Canvas
+            [sg.Text('Discrete Control Model Grapher')],
+            [sg.Canvas(key='-CANVAS-')],
+            #Coeffiecients
+            [sg.Text('Coefficients')],
+            [sg.Text('a')],
+            *[[sg.Text('a' + str(i)), sg.InputText(),] for i in range(numA)],
+            [sg.Button('Add a'), sg.Button('Delete a')],
+            [sg.Text('b')],
+            *[[sg.Text('b' + str(i)), sg.InputText(),] for i in range(numB)],
+            [sg.Button('Add b'), sg.Button('Delete b')],
+            # Input Values
+            [sg.Text('Enter Values')],
+            [sg.Text('Constant (k)', size=defaultSize), sg.InputText(key='-k-', size=defaultSize), sg.Text('Delay (d)', size=defaultSize), sg.InputText(key='-d-', size=defaultSize)],
+            [sg.Text("\u03F4'", size=defaultSize), sg.InputText(key='-tPrime-', size=defaultSize), sg.Text('Time Interval (T)', size=defaultSize), sg.InputText(key='-T-', size=defaultSize)],
+            [sg.Text('Time Constant (\u03F4)', size=defaultSize), sg.InputText(key='-t-', size=defaultSize), sg.Text('m[k]'), sg.InputText(key='-mk-', size=defaultSize)],
+            [sg.Text('Input Disturbance', size=defaultSize), sg.InputText(key='-inputD-', size=defaultSize), sg.Text('Output Disturbance', size=defaultSize), sg.InputText(key='-outputD-', size=defaultSize)],
+            # Window Buttons
+            [sg.Button('Submit'), sg.Button('Close')]
+        ]
+
+        windowTemp = sg.Window('Discrete Model Grapher', location=(0, 0),
         finalize=True, element_justification='center', font='Helvetica 18').Layout(layout)
         window.Close()
         window = windowTemp
