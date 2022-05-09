@@ -24,6 +24,28 @@ numB = 0 # Number of b's coefficients
 numY = 0 # Number of outputs
 numU = 0 # Number of inputs
 
+# Input Values
+k = 0 # Gain Constant
+T = 0 # Time Interval
+tau = 0 # Time Constant
+t = 0 # Theta
+tPrime = 0 # Theta Prime
+inDist = 0 # Input Disturbance
+outDist = 0 # Output Disturbance
+mk = 0 # Input Signal
+
+# Coefficients (Maximum 4 per coefficient)
+# If not given, value must be 0
+a1 = 0
+a2 = 0
+a3 = 0
+a4 = 0
+
+b1 = 0
+b2 = 0
+b3 = 0
+b4 = 0
+
 # Function to draw Graph 
 def draw_figure(canvas, figure):
     figure_canvas_agg = FigureCanvasTkAgg(figure, canvas)
@@ -32,7 +54,7 @@ def draw_figure(canvas, figure):
 
     return figure_canvas_agg
 
-################### ARX Model ###################
+################### Plant Control Discrete Model ###################
 
 # Case Determiner
 def case(d, T):
@@ -108,7 +130,7 @@ layout = [
     [sg.Text('Enter Values')],
     [sg.Text('Constant (k)', size=defaultSize), sg.InputText(key='-k-', size=defaultSize), sg.Text('Delay (d)', size=defaultSize), sg.InputText(key='-d-', size=defaultSize)],
     [sg.Text("\u03F4'", size=defaultSize), sg.InputText(key='-tPrime-', size=defaultSize), sg.Text('Time Interval (T)', size=defaultSize), sg.InputText(key='-T-', size=defaultSize)],
-    [sg.Text('Time Constant (\u03F4)', size=defaultSize), sg.InputText(key='-t-', size=defaultSize), sg.Text('m[k]'), sg.InputText(key='-mk-', size=defaultSize)],
+    [sg.Text('Time Constant (\u03F4)', size=defaultSize), sg.InputText(key='-tau-', size=defaultSize), sg.Text('m[k]'), sg.InputText(key='-mk-', size=defaultSize)],
     [sg.Text('Input Disturbance', size=defaultSize), sg.InputText(key='-inputD-', size=defaultSize), sg.Text('Output Disturbance', size=defaultSize), sg.InputText(key='-outputD-', size=defaultSize)],
     # Window Buttons
     [sg.Button('Submit'), sg.Button('Close')]
@@ -135,16 +157,25 @@ draw_figure(window['-CANVAS-'].TKCanvas, fig)
 # Create an event loop
 while True:
     event, values = window.read()
-    print(event, values)
+    print(values['-k-'])
     # End program if user closes window or
     # presses the Close button
     if event == 'Close' or event == sg.WIN_CLOSED:
         break
 
     if event == 'Submit':
-        # values=['-k-', '-T-', '-tPrime-', '-d-', '-t-']
-        # an(values['-T-'], values['-t-'])
-        print(values)
+        # Store submitted values in global variables
+        k = values['-k-']
+        T = values['T']
+        tPrime = values['-tPrime-']
+        inDist = values['-inputD-']
+        outDist = values['-outputD-']
+        tau = values['-tau-']
+        mk = values['-mk-']
+
+        if numA > 0: print('Get other indexes and if empty fill in with 0')
+        if numB > 0: print('Get other indexe values and if empty fill in with 0')
+
 
     if event == 'Add a' or event == 'Delete a' or event == 'Add b' or event == 'Delete b':
         numA += -1 if event == 'Delete a' else 1
@@ -171,6 +202,8 @@ while True:
             # Window Buttons
             [sg.Button('Submit'), sg.Button('Close')]
         ]
+
+        draw_figure(window['-CANVAS-'].TKCanvas, fig)
 
         windowTemp = sg.Window('Discrete Model Grapher', location=(0, 0),
         finalize=True, element_justification='center', font='Helvetica 18').Layout(layout)
