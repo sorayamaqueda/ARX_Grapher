@@ -144,7 +144,7 @@ window = sg.Window(
     element_justification='center',
     font='Helvetica 18',
     size=(800, 800)
-).Layout(layout) # Window Layout
+).Layout(layout).Finalize() # Window Layout
 
 # Graph
 fig = matplotlib.figure.Figure(figsize=(5, 4), dpi=100)
@@ -157,7 +157,6 @@ draw_figure(window['-CANVAS-'].TKCanvas, fig)
 # Create an event loop
 while True:
     event, values = window.read()
-    print(values['-k-'])
     # End program if user closes window or
     # presses the Close button
     if event == 'Close' or event == sg.WIN_CLOSED:
@@ -166,7 +165,7 @@ while True:
     if event == 'Submit':
         # Store submitted values in global variables
         k = values['-k-']
-        T = values['T']
+        T = values['-T-']
         tPrime = values['-tPrime-']
         inDist = values['-inputD-']
         outDist = values['-outputD-']
@@ -177,10 +176,12 @@ while True:
         if numB > 0: print('Get other indexe values and if empty fill in with 0')
 
 
-    if event == 'Add a' or event == 'Delete a' or event == 'Add b' or event == 'Delete b':
-        numA += -1 if event == 'Delete a' else 1
-        numB += -1 if event == 'Delte b' else 1
+    # If a new coefficient a is added
+    if event == 'Add a' or event == 'Delete a':
+        if event == 'Delete a': numA += -1  
+        else: numA += 1
 
+        # Avoid reusing layout
         layout = [
             # Canvas
             [sg.Text('Discrete Control Model Grapher')],
@@ -203,10 +204,53 @@ while True:
             [sg.Button('Submit'), sg.Button('Close')]
         ]
 
+        fig = matplotlib.figure.Figure(figsize=(5, 4), dpi=100)
+        t = np.arange(0, 3, .01)
+        fig.add_subplot(111).plot(t, 2 * np.sin(1 + np.pi * t))
+
         draw_figure(window['-CANVAS-'].TKCanvas, fig)
 
         windowTemp = sg.Window('Discrete Model Grapher', location=(0, 0),
-        finalize=True, element_justification='center', font='Helvetica 18').Layout(layout)
+        finalize=True, element_justification='center', font='Helvetica 18').Layout(layout).Finalize()
+        window.Close()
+        window = windowTemp
+
+    # If another coefficient b is added
+    if event == 'Add b' or event == 'Delete b':
+        if event == 'Delete b': numB += -1  
+        else: numB += 1
+
+        # Avoid reusing layout
+        layout = [
+            # Canvas
+            [sg.Text('Discrete Control Model Grapher')],
+            [sg.Canvas(key='-CANVAS-')],
+            #Coeffiecients
+            [sg.Text('Coefficients')],
+            [sg.Text('a')],
+            *[[sg.Text('a' + str(i)), sg.InputText(),] for i in range(numA)],
+            [sg.Button('Add a'), sg.Button('Delete a')],
+            [sg.Text('b')],
+            *[[sg.Text('b' + str(i)), sg.InputText(),] for i in range(numB)],
+            [sg.Button('Add b'), sg.Button('Delete b')],
+            # Input Values
+            [sg.Text('Enter Values')],
+            [sg.Text('Constant (k)', size=defaultSize), sg.InputText(key='-k-', size=defaultSize), sg.Text('Delay (d)', size=defaultSize), sg.InputText(key='-d-', size=defaultSize)],
+            [sg.Text("\u03F4'", size=defaultSize), sg.InputText(key='-tPrime-', size=defaultSize), sg.Text('Time Interval (T)', size=defaultSize), sg.InputText(key='-T-', size=defaultSize)],
+            [sg.Text('Time Constant (\u03F4)', size=defaultSize), sg.InputText(key='-t-', size=defaultSize), sg.Text('m[k]'), sg.InputText(key='-mk-', size=defaultSize)],
+            [sg.Text('Input Disturbance', size=defaultSize), sg.InputText(key='-inputD-', size=defaultSize), sg.Text('Output Disturbance', size=defaultSize), sg.InputText(key='-outputD-', size=defaultSize)],
+            # Window Buttons
+            [sg.Button('Submit'), sg.Button('Close')]
+        ]
+
+        fig = matplotlib.figure.Figure(figsize=(5, 4), dpi=100)
+        t = np.arange(0, 3, .01)
+        fig.add_subplot(111).plot(t, 2 * np.sin(1 + np.pi * t))
+
+        draw_figure(window['-CANVAS-'].TKCanvas, fig)
+
+        windowTemp = sg.Window('Discrete Model Grapher', location=(0, 0),
+        finalize=True, element_justification='center', font='Helvetica 18').Layout(layout).Finalize()
         window.Close()
         window = windowTemp
 
