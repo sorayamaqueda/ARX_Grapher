@@ -6,9 +6,10 @@
 # A00
 # A00
 
+import matplotlib.pyplot as plt
 import PySimpleGUI as sg # Graphic Interface Library
-import numpy as np # Math Library
 import pandas as pd # Data Analysis Library
+import numpy as np # Math Library
 import matplotlib # Grapher Library
 
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -19,6 +20,7 @@ matplotlib.use('TkAgg')
 # Global Contro Variables
 defaultSize = (10, 1)
 
+maxCoefficientIndex = 4
 numA = 0 # Number of a's coefficients
 numB = 0 # Number of b's coefficients
 numY = 0 # Number of outputs
@@ -151,8 +153,14 @@ fig = matplotlib.figure.Figure(figsize=(5, 4), dpi=100)
 t = np.arange(0, 3, .01)
 fig.add_subplot(111).plot(t, 2 * np.sin(1 + np.pi * t))
 
+x = np.arange(14)
+y = np.sin(x / 2)
+
+fig2 = matplotlib.figure.Figure(figsize=(5, 4), dpi=100)
+fig2.add_subplot(111).plot(plt.step(x, y + 2, label='pre (default)'))
+
 # Add plot to the window
-draw_figure(window['-CANVAS-'].TKCanvas, fig)
+draw_figure(window['-CANVAS-'].TKCanvas, fig, fig2)
 
 # Create an event loop
 while True:
@@ -172,14 +180,11 @@ while True:
         tau = values['-tau-']
         mk = values['-mk-']
 
-        if numA > 0: print('Get other indexes and if empty fill in with 0')
-        if numB > 0: print('Get other indexe values and if empty fill in with 0')
-
-
     # If a new coefficient a is added
     if event == 'Add a' or event == 'Delete a':
         if event == 'Delete a': numA += -1  
-        else: numA += 1
+        elif numA <= maxCoefficientIndex: numA += 1
+        else: print('\nNo more than 4 coefficients can be declared.')
 
         # Avoid reusing layout
         layout = [
@@ -218,7 +223,8 @@ while True:
     # If another coefficient b is added
     if event == 'Add b' or event == 'Delete b':
         if event == 'Delete b': numB += -1  
-        else: numB += 1
+        elif numB <= maxCoefficientIndex: numB += 1
+        else: print('\nUnable to add more than 4 coeefficients.')
 
         # Avoid reusing layout
         layout = [
