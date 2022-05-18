@@ -114,26 +114,39 @@ def cn(kMax, T, d, tao):
 headers = { 'k': [], 'y(k)': [], 'u(k)': [] }
 
 table = pd.DataFrame(headers)
+headings = list(headers)
+values = table.values.tolist()
+
+# Theme and Styling
+sg.theme('DarkBlue')
+sg.set_options(font=('Courier New', 12))
 
 # Define the Layout
 layout = [
     # Canvas
     [sg.Text('Discrete Control Model Grapher')],
     [sg.Canvas(key='-CANVAS-')],
+    [sg.Frame(layout=[
+        [sg.Table(values=values, headings=headings, auto_size_columns=False, col_widths=list(map(lambda x:len(x)+1, headings)))]
+    ], title='Table of Values')],
     #Coeffiecients
-    [sg.Text('Coefficients')],
-    [sg.Text('a')],
-    *[[sg.Text('a' + str(i)), sg.InputText(),] for i in range(numA)],
-    [sg.Button('Add a'), sg.Button('Delete a')],
-    [sg.Text('b')],
-    *[[sg.Text('b' + str(i)), sg.InputText(),] for i in range(numB)],
-    [sg.Button('Add b'), sg.Button('Delete b')],
+    [sg.Frame(layout= [
+        [sg.Text('Coefficients')],
+        [sg.Text('a')],
+        *[[sg.Text('a' + str(i)), sg.InputText(),] for i in range(numA)],
+        [sg.Button('Add a'), sg.Button('Delete a')],
+        [sg.Text('b')],
+        *[[sg.Text('b' + str(i)), sg.InputText(),] for i in range(numB)],
+        [sg.Button('Add b'), sg.Button('Delete b')],
+    ], title='Coefficients')],
     # Input Values
-    [sg.Text('Enter Values')],
-    [sg.Text('Constant (k)', size=defaultSize), sg.InputText(key='-k-', size=defaultSize), sg.Text('Delay (d)', size=defaultSize), sg.InputText(key='-d-', size=defaultSize)],
-    [sg.Text("\u03F4'", size=defaultSize), sg.InputText(key='-tPrime-', size=defaultSize), sg.Text('Time Interval (T)', size=defaultSize), sg.InputText(key='-T-', size=defaultSize)],
-    [sg.Text('Time Constant (\u03F4)', size=defaultSize), sg.InputText(key='-tau-', size=defaultSize), sg.Text('m[k]'), sg.InputText(key='-mk-', size=defaultSize)],
-    [sg.Text('Input Disturbance', size=defaultSize), sg.InputText(key='-inputD-', size=defaultSize), sg.Text('Output Disturbance', size=defaultSize), sg.InputText(key='-outputD-', size=defaultSize)],
+    [sg.Frame(layout=[
+        [sg.Text('Enter Values')],
+        [sg.Text('Constant (k)', size=defaultSize), sg.InputText(key='-k-', size=defaultSize), sg.Text('Delay (d)', size=defaultSize), sg.InputText(key='-d-', size=defaultSize)],
+        [sg.Text("\u03F4'", size=defaultSize), sg.InputText(key='-tPrime-', size=defaultSize), sg.Text('Time Interval (T)', size=defaultSize), sg.InputText(key='-T-', size=defaultSize)],
+        [sg.Text('Time Constant (\u03F4)', size=defaultSize), sg.InputText(key='-tau-', size=defaultSize), sg.Text('m[k]'), sg.InputText(key='-mk-', size=defaultSize)],
+        [sg.Text('Input Disturbance', size=defaultSize), sg.InputText(key='-inputD-', size=defaultSize), sg.Text('Output Disturbance', size=defaultSize), sg.InputText(key='-outputD-', size=defaultSize)],
+    ], title='Function Values')]
     # Window Buttons
     [sg.Button('Submit'), sg.Button('Close')]
 ]
@@ -147,6 +160,7 @@ window = sg.Window(
     font='Helvetica 18',
     size=(800, 800)
 ).Layout(layout).Finalize() # Window Layout
+window.maximize()
 
 # Graph
 fig = matplotlib.figure.Figure(figsize=(5, 4), dpi=100)
@@ -157,10 +171,11 @@ x = np.arange(14)
 y = np.sin(x / 2)
 
 fig2 = matplotlib.figure.Figure(figsize=(5, 4), dpi=100)
-fig2.add_subplot(111).plot(plt.step(x, y + 2, label='pre (default)'))
+fig2.add_subplot(111).plot(t, 8 * np.sin(1 + np.pi * t))
 
 # Add plot to the window
-draw_figure(window['-CANVAS-'].TKCanvas, fig, fig2)
+draw_figure(window['-CANVAS-'].TKCanvas, fig)
+draw_figure(window['-CANVAS-'].TKCanvas, fig2)
 
 # Create an event loop
 while True:
@@ -209,16 +224,18 @@ while True:
             [sg.Button('Submit'), sg.Button('Close')]
         ]
 
-        fig = matplotlib.figure.Figure(figsize=(5, 4), dpi=100)
-        t = np.arange(0, 3, .01)
-        fig.add_subplot(111).plot(t, 2 * np.sin(1 + np.pi * t))
-
-        draw_figure(window['-CANVAS-'].TKCanvas, fig)
-
         windowTemp = sg.Window('Discrete Model Grapher', location=(0, 0),
         finalize=True, element_justification='center', font='Helvetica 18').Layout(layout).Finalize()
         window.Close()
         window = windowTemp
+        window.maximize()
+
+        fig = matplotlib.figure.Figure(figsize=(5, 4), dpi=100)
+        t = np.arange(0, 3, .01)
+        fig.add_subplot(111).plot(t, 2 * np.sin(1 + np.pi * t))
+        
+        draw_figure(window['-CANVAS-'].TKCanvas, fig),
+        draw_figure(window['-CANVAS-'].TKCanvas, fig2)
 
     # If another coefficient b is added
     if event == 'Add b' or event == 'Delete b':
@@ -249,16 +266,18 @@ while True:
             [sg.Button('Submit'), sg.Button('Close')]
         ]
 
+        windowTemp = sg.Window('Discrete Model Grapher', location=(0, 0),
+        finalize=True, element_justification='center', font='Helvetica 18').Layout(layout).Finalize()
+        window.Close()
+        window = windowTemp
+        window.maximize()
+
         fig = matplotlib.figure.Figure(figsize=(5, 4), dpi=100)
         t = np.arange(0, 3, .01)
         fig.add_subplot(111).plot(t, 2 * np.sin(1 + np.pi * t))
 
         draw_figure(window['-CANVAS-'].TKCanvas, fig)
-
-        windowTemp = sg.Window('Discrete Model Grapher', location=(0, 0),
-        finalize=True, element_justification='center', font='Helvetica 18').Layout(layout).Finalize()
-        window.Close()
-        window = windowTemp
+        draw_figure(window['-CANVAS-'].TKCanvas, fig2)
 
 window.close()
 
