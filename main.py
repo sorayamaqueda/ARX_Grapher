@@ -6,6 +6,12 @@
 # A00
 # A00
 
+# Functionality:
+# We need to define a function in Z. Then we need to obtain the Discrete Equivalent of that function (HGp(z))
+# From this transformation, we obtain coefficients a1, a2, b1.
+# Based on an Excel document, we need to preview how the graph will be.
+# The first delivery needs to receive inputs from User, and then be able to graph a first order ARX Model.
+
 import matplotlib.pyplot as plt
 import PySimpleGUI as sg # Graphic Interface Library
 import pandas as pd # Data Analysis Library
@@ -103,8 +109,7 @@ def cn(kMax, T, d, tao):
     b1 = bn(T, tao, n)
 
     for n in kMax:
-        # If a value doesn't exists, 
-        # we assume that it's 0
+        # If a value doesn't exists, we assume that it's 0
         if cn[n-1]==None:  cn[n-1].append(0)
         cn.append(a1*cn[n-1] + b1*cn[n-1-d])
     
@@ -126,9 +131,9 @@ layout = [
     # Canvas
     [sg.Text('Discrete Control Model Grapher')],
     [sg.Canvas(key='-CANVAS-')],
-    [sg.Frame(layout=[
-        [sg.Table(values=values, headings=headings, auto_size_columns=False, col_widths=list(map(lambda x:len(x)+1, headings)))]
-    ], title='Table of Values')],
+    # [sg.Frame(layout=[
+    #     [sg.Table(values=values, headings=headings, auto_size_columns=False, col_widths=list(map(lambda x:len(x)+1, headings)))]
+    # ], title='Table of Values')],
     #Coeffiecients
     [sg.Frame(layout= [
         [sg.Text('Coefficients')],
@@ -140,13 +145,12 @@ layout = [
         [sg.Button('Add b'), sg.Button('Delete b')],
     ], title='Coefficients')],
     # Input Values
-    [sg.Frame(layout=[
-        [sg.Text('Enter Values')],
-        [sg.Text('Constant (k)', size=defaultSize), sg.InputText(key='-k-', size=defaultSize), sg.Text('Delay (d)', size=defaultSize), sg.InputText(key='-d-', size=defaultSize)],
-        [sg.Text("\u03F4'", size=defaultSize), sg.InputText(key='-tPrime-', size=defaultSize), sg.Text('Time Interval (T)', size=defaultSize), sg.InputText(key='-T-', size=defaultSize)],
-        [sg.Text('Time Constant (\u03F4)', size=defaultSize), sg.InputText(key='-tau-', size=defaultSize), sg.Text('m[k]'), sg.InputText(key='-mk-', size=defaultSize)],
-        [sg.Text('Input Disturbance', size=defaultSize), sg.InputText(key='-inputD-', size=defaultSize), sg.Text('Output Disturbance', size=defaultSize), sg.InputText(key='-outputD-', size=defaultSize)],
-    ], title='Function Values')]
+    [sg.Text('Enter Values')],
+    [sg.Text('Constant (k)', size=defaultSize), sg.InputText(key='-k-', size=defaultSize), sg.Text('Delay (d)', size=defaultSize), sg.InputText(key='-d-', size=defaultSize)],
+    [sg.Text("\u03F4'", size=defaultSize), sg.InputText(key='-tPrime-', size=defaultSize), sg.Text('Time Interval (T)', size=defaultSize), sg.InputText(key='-T-', size=defaultSize)],
+    [sg.Text('Time Constant (\u03F4)', size=defaultSize), sg.InputText(key='-tau-', size=defaultSize), sg.Text('m[k]'), sg.InputText(key='-mk-', size=defaultSize)],
+    [sg.Text('Input Disturbance', size=defaultSize), sg.InputText(key='-inputD-', size=defaultSize), sg.Text('Output Disturbance', size=defaultSize), sg.InputText(key='-outputD-', size=defaultSize)],
+
     # Window Buttons
     [sg.Button('Submit'), sg.Button('Close')]
 ]
@@ -167,21 +171,14 @@ fig = matplotlib.figure.Figure(figsize=(5, 4), dpi=100)
 t = np.arange(0, 3, .01)
 fig.add_subplot(111).plot(t, 2 * np.sin(1 + np.pi * t))
 
-x = np.arange(14)
-y = np.sin(x / 2)
-
-fig2 = matplotlib.figure.Figure(figsize=(5, 4), dpi=100)
-fig2.add_subplot(111).plot(t, 8 * np.sin(1 + np.pi * t))
-
 # Add plot to the window
 draw_figure(window['-CANVAS-'].TKCanvas, fig)
-draw_figure(window['-CANVAS-'].TKCanvas, fig2)
+#draw_figure(window['-CANVAS-'].TKCanvas, fig2)
 
 # Create an event loop
 while True:
     event, values = window.read()
-    # End program if user closes window or
-    # presses the Close button
+    # End program if user closes window or presses the Close button
     if event == 'Close' or event == sg.WIN_CLOSED:
         break
 
@@ -234,8 +231,17 @@ while True:
         t = np.arange(0, 3, .01)
         fig.add_subplot(111).plot(t, 2 * np.sin(1 + np.pi * t))
         
-        draw_figure(window['-CANVAS-'].TKCanvas, fig),
-        draw_figure(window['-CANVAS-'].TKCanvas, fig2)
+        draw_figure(window['-CANVAS-'].TKCanvas, fig)
+                
+        # Store submitted values in global variables
+        k = values['-k-']
+        T = values['-T-']
+        tPrime = values['-tPrime-']
+        inDist = values['-inputD-']
+        outDist = values['-outputD-']
+        tau = values['-tau-']
+        mk = values['-mk-']
+
 
     # If another coefficient b is added
     if event == 'Add b' or event == 'Delete b':
@@ -277,7 +283,16 @@ while True:
         fig.add_subplot(111).plot(t, 2 * np.sin(1 + np.pi * t))
 
         draw_figure(window['-CANVAS-'].TKCanvas, fig)
-        draw_figure(window['-CANVAS-'].TKCanvas, fig2)
+
+        # Store submitted values in global variables
+        k = values['-k-']
+        T = values['-T-']
+        tPrime = values['-tPrime-']
+        inDist = values['-inputD-']
+        outDist = values['-outputD-']
+        tau = values['-tau-']
+        mk = values['-mk-']
+
 
 window.close()
 
