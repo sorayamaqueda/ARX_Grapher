@@ -27,7 +27,7 @@ from math import e, trunc
 matplotlib.use('TkAgg')
 
 # Global Contro Variables
-defaultSize = (10, 1)
+defaultSize = (15, 1)
 
 maxCoefficientIndex = 4
 numA = 0  # Number of a's coefficients
@@ -71,7 +71,6 @@ def draw_figure(canvas, figure):
 
 # Case Determiner
 
-
 def case(d, T):
     tPrime = d*T
 
@@ -92,24 +91,20 @@ def bn(T, tao, k):
 
 # Delay
 
-
 def d(tPrime, T):
     return trunc(tPrime/T)
 
 # Theta
-
 
 def t(tPrime, T, d):
     return tPrime-(d*T)
 
 # Theta Prime
 
-
 def tPrime(t, T, d):
     return t+(d*T)
 
 # Transfer Function
-
 
 def HGp(cn, mn):
     return cn/mn
@@ -121,8 +116,6 @@ def mn(k, t, T, z, d):
 # Difference Equations
 
 # c[n] = a1*c[n-1] + b1*m[n-1-d]
-
-
 def cn(kMax, T, d, tao):
     cn = []
     a1 = an(T, tao)
@@ -153,9 +146,10 @@ layout = [
     # Canvas
     [sg.Text('Discrete Control Model Grapher')],
     [sg.Canvas(key='-CANVAS-')],
-    # [sg.Frame(layout=[
-    #     [sg.Table(values=values, headings=headings, auto_size_columns=False, col_widths=list(map(lambda x:len(x)+1, headings)))]
-    # ], title='Table of Values')],
+    [sg.Frame(layout=[
+        [sg.Table(values=values, headings=headings, auto_size_columns=False,
+                  col_widths=list(map(lambda x:len(x)+1, headings)))]
+    ], title='Table of Values')],
     # Coeffiecients
     [sg.Frame(layout=[
         [sg.Text('a')],
@@ -167,17 +161,24 @@ layout = [
     ], title='Coefficients')],
     # Input Values
     [sg.Frame(layout=[
-        [sg.Text('Constant (k)', size=defaultSize), sg.InputText(key='-k-', size=defaultSize)],
-        [sg.Text('Delay (d)', size=defaultSize), sg.InputText(key='-d-', size=defaultSize)],
-        [sg.Text("\u03F4'", size=defaultSize), sg.InputText(key='-tPrime-', size=defaultSize)],
-        [sg.Text('Time Interval (T)', size=defaultSize), sg.InputText(key='-T-', size=defaultSize)]
+        [sg.Text('Constant (k)', size=defaultSize),
+         sg.InputText(key='-k-', size=defaultSize)],
+        [sg.Text('Delay (d)', size=defaultSize),
+         sg.InputText(key='-d-', size=defaultSize)],
+        [sg.Text("\u03F4'", size=defaultSize), sg.InputText(
+            key='-tPrime-', size=defaultSize)],
+        [sg.Text('Time Interval (T)', size=defaultSize),
+         sg.InputText(key='-T-', size=defaultSize)]
     ], title='Values'),
-    sg.Frame(layout=[
-        [sg.Text('Time Constant (\u03F4)', size=defaultSize), sg.InputText(key='-tau-', size=defaultSize)], 
-        [sg.Text('m[k]'), sg.InputText(key='-mk-', size=defaultSize)],
-        [sg.Text('Input Disturbance', size=defaultSize), sg.InputText(key='-inputD-', size=defaultSize)],
-        [sg.Text('Output Disturbance', size=defaultSize), sg.InputText(key='-outputD-', size=defaultSize)]
-    ], title='')],
+        sg.Frame(layout=[
+            [sg.Text('Time Constant (\u03F4)', size=defaultSize),
+             sg.InputText(key='-tau-', size=defaultSize)],
+            [sg.Text('m[k]'), sg.InputText(key='-mk-', size=defaultSize)],
+            [sg.Text('Input Disturbance', size=defaultSize),
+             sg.InputText(key='-inputD-', size=defaultSize)],
+            [sg.Text('Output Disturbance', size=defaultSize),
+             sg.InputText(key='-outputD-', size=defaultSize)]
+        ], title='')],
     # Window Buttons
     [sg.Button('Submit'), sg.Button('Close')]
 ]
@@ -221,6 +222,57 @@ while True:
         break
 
     if event == 'Submit':
+        # Avoid reusing layout
+        layout = [
+            # Canvas
+            [sg.Text('Discrete Control Model Grapher')],
+            [sg.Canvas(key='-CANVAS-')],
+            # Coeffiecients
+            [sg.Text('Coefficients')],
+            [sg.Text('a')],
+            *[[sg.Text('a' + str(i)), sg.InputText(), ] for i in range(numA)],
+            [sg.Button('Add a'), sg.Button('Delete a')],
+            [sg.Text('b')],
+            *[[sg.Text('b' + str(i)), sg.InputText(), ] for i in range(numB)],
+            [sg.Button('Add b'), sg.Button('Delete b')],
+            # Input Values
+            [sg.Text('Enter Values')],
+            [sg.Text('Constant (k)', size=defaultSize), sg.InputText(key='-k-', size=defaultSize),
+             sg.Text('Delay (d)', size=defaultSize), sg.InputText(key='-d-', size=defaultSize)],
+            [sg.Text("\u03F4'", size=defaultSize), sg.InputText(key='-tPrime-', size=defaultSize),
+             sg.Text('Time Interval (T)', size=defaultSize), sg.InputText(key='-T-', size=defaultSize)],
+            [sg.Text('Time Constant (\u03F4)', size=defaultSize), sg.InputText(
+                key='-t-', size=defaultSize), sg.Text('m[k]'), sg.InputText(key='-mk-', size=defaultSize)],
+            [sg.Text('Input Disturbance', size=defaultSize), sg.InputText(key='-inputD-', size=defaultSize),
+             sg.Text('Output Disturbance', size=defaultSize), sg.InputText(key='-outputD-', size=defaultSize)],
+            # Window Buttons
+            [sg.Button('Submit'), sg.Button('Close')]
+        ]
+
+        windowTemp = sg.Window('Discrete Model Grapher', location=(0, 0),
+                               finalize=True, element_justification='center', font='Helvetica 18').Layout(layout).Finalize()
+        window.Close()
+        window = windowTemp
+
+        fig = matplotlib.figure.Figure(figsize=(5, 4), dpi=100)
+
+        # Define Transfer Function
+        num = np.array([2])
+        den = np.array([3, 1])
+
+        H = signal.TransferFunction(num, den)
+        t, y = signal.step(H)
+
+        plt.plot(t, y)
+        plt.title('Step Response')
+        plt.xlabel('t')
+        plt.ylabel('y')
+        plt.grid()
+
+        fig.add_subplot(111).plot(plt.show())
+
+        draw_figure(window['-CANVAS-'].TKCanvas, fig)
+
         # Store submitted values in global variables
         k = values['-k-']
         T = values['-T-']
