@@ -12,7 +12,9 @@
 # Based on an Excel document, we need to preview how the graph will be.
 # The first delivery needs to receive inputs from User, and then be able to graph a first order ARX Model.
 
+from pickle import NONE
 from turtle import title
+
 import control.matlab as control
 import scipy.signal as signal
 import matplotlib.pyplot as plt
@@ -49,6 +51,9 @@ mk = 0  # Input Signal
 
 # Coefficients (Maximum 4 per coefficient)
 # If not given, value must be 0
+a = []
+b = []
+
 a1 = 0
 a2 = 0
 a3 = 0
@@ -58,6 +63,11 @@ b1 = 0
 b2 = 0
 b3 = 0
 b4 = 0
+
+# Result lists
+cn = []
+mn = []
+tempM = 0
 
 # Function to draw Graph
 
@@ -72,6 +82,8 @@ def draw_figure(canvas, figure):
 ################### Plant Control Discrete Model ###################
 
 # Case Determiner
+
+
 def case(d, T):
     tPrime = d*T
 
@@ -91,31 +103,38 @@ def bn(T, tao, k):
     return k*(1-(e**(-T/tao)))
 
 # Delay
+
+
 def d(tPrime, T):
     return trunc(tPrime/T)
 
 # Theta
+
+
 def t(tPrime, T, d):
     return tPrime-(d*T)
 
 # Theta Prime
+
+
 def tPrime(t, T, d):
     return t+(d*T)
 
 # Transfer Function
+
+
 def HGp(cn, mn):
     return cn/mn
 
 
-def mn(k, t, T, z, d):
-    return k*(1-(e**(-T/t)))*(z**(-1-d))
+# def mn(k, t, T, z, d):
+#     return k*(1-(e**(-T/t)))*(z**(-1-d))
 
 # Difference Equations
 
 # c[n] = a1*c[n-1] + b1*m[n-1-d]
-def cn(kMax, T, d, tao):
-    cn = []
-    a1 = an(T, tao)
+def PulseTransferFunction(kMax):
+    a1 = values['-a-1']
     b1 = bn(T, tao, n)
 
     for n in kMax:
@@ -142,10 +161,12 @@ sg.set_options(font=('Courier New', 12))
 coefficientsFrame = [
     [sg.Frame(layout=[
             [sg.Text('a')],
-            *[[sg.Text('a' + str(i)), sg.InputText(), ] for i in range(numA)],
+            *[[sg.Text('a' + str(i)), sg.InputText(key='-a-' + str(i)), ]
+                       for i in range(numA)],
             [sg.Button('Add a'), sg.Button('Delete a')],
             [sg.Text('b')],
-            *[[sg.Text('b' + str(i)), sg.InputText(), ] for i in range(numB)],
+            *[[sg.Text('b' + str(i)), sg.InputText(key='-b-' + str(i)), ]
+                       for i in range(numB)],
             [sg.Button('Add b'), sg.Button('Delete b')],
         ], title='Coefficients')]
 ]
@@ -228,10 +249,10 @@ plt.xlabel('t')
 plt.ylabel('y')
 plt.grid()
 
-#fig.add_subplot(111).plot(plt.show())
+# fig.add_subplot(111).plot(plt.show())
 
 # Add plot to the window
-#draw_figure(window['-CANVAS-'].TKCanvas, fig)
+# draw_figure(window['-CANVAS-'].TKCanvas, fig)
 
 # Create an event loop
 while True:
@@ -243,26 +264,85 @@ while True:
     # Enable plot visibility
     if event == 'Show Plot':
         showPlot = True
+        print('Generating graph...')
+        num = np.array([2])
+        den = np.array([3, 1])
+
+        H = signal.TransferFunction(num, den)
+
+        t, m = signal.step(H)
+        plt.plot(t, m)
+        plt.xlabel('t')
+        plt.ylabel('m[k]')
+        plt.grid()
+        fig.add_subplot(111).plot(plt.show())
 
     # Store input values
     if event == 'Submit':
+        
+        # Coefficients
+        coefficientsFrame = [
+            [sg.Frame(layout=[
+                    [sg.Text('a')],
+                    *[[sg.Text('a' + str(i)), sg.InputText(key='-a-' + str(i)), ]for i in range(numA)],
+                    [sg.Button('Add a'), sg.Button('Delete a')],
+                    [sg.Text('b')],
+                    *[[sg.Text('b' + str(i)), sg.InputText(key='-b-' + str(i)), ] for i in range(numB)],
+                    [sg.Button('Add b'), sg.Button('Delete b')],
+                ], title='Coefficients')
+            ]
+        ]
+
+        # Table
+        tableFrame = [
+            [sg.Frame(layout=[
+                [sg.Table(
+                    values=values,
+                    headings=headings,
+                    auto_size_columns=False,
+                    col_widths=list(map(lambda x:len(x)+1, headings)))
+                ]
+            ], title='Table of Values')]
+        ]
+
+        # Values
+        valuesFrame = [
+            [sg.Frame(layout=[
+                [sg.Text('Constant (k)', size=defaultSize), sg.InputText(key='-k-', size=defaultSize)],
+                [sg.Text('Delay (d)', size=defaultSize), sg.InputText(key='-d-', size=defaultSize)],
+                [sg.Text("\u03F4'", size=defaultSize), sg.InputText(key='-tPrime-', size=defaultSize)],
+                [sg.Text('Time Interval (T)', size=defaultSize), sg.InputText(key='-T-', size=defaultSize)]
+            ], title='')]
+        ]
+
+        functionValues = [
+            [sg.Frame(layout=[
+                [sg.Text('Time Constant (\u03F4)', size=defaultSize), sg.InputText(key='-tau-', size=defaultSize)],
+                [sg.Text('m[k]'), sg.InputText(key='-mk-', size=defaultSize)],
+                [sg.Text('Input Disturbance', size=defaultSize), sg.InputText(key='-inputD-', size=defaultSize)],
+                [sg.Text('Output Disturbance', size=defaultSize), sg.InputText(key='-outputD-', size=defaultSize)]
+            ], title='')]
+        ]
+
         # Avoid reusing layout
         layout = [
             # Canvas
             [sg.Text('Discrete Control Model Grapher')],
             [sg.Canvas(key='-CANVAS-')],
-            [sg.Frame('Inputs', tableFrame, pad=(0, 5)), sg.Frame('', coefficientsFrame, pad=(0, (14, 5)), key='Hide')],
+            [sg.Frame('Inputs', tableFrame, pad=(0, 5)), sg.Frame(
+                '', coefficientsFrame, pad=(0, (14, 5)), key='Hide')],
             # Input Values
-            [sg.Frame('Values', valuesFrame, pad=(0, 5)), sg.Frame('', functionValues, pad=(0, (14, 5)), key='Hide')],
+            [sg.Frame('Values', valuesFrame, pad=(0, 5)), sg.Frame(
+                '', functionValues, pad=(0, (14, 5)), key='Hide')],
             # Window Buttons
             [sg.Button('Submit'), sg.Button('Show Plot'), sg.Button('Close')]
         ]
 
         windowTemp = sg.Window(
-            'Discrete Model Grapher', 
+            'Discrete Model Grapher',
             location=(0, 0),
-            finalize=True, 
-            element_justification='center', 
+            finalize=True,
+            element_justification='center',
             font='Helvetica 18').Layout(layout).Finalize()
         window.Close()
         window = windowTemp
@@ -276,11 +356,16 @@ while True:
         tau = values['-tau-']
         mk = values['-mk-']
 
+        tempM = mk
+        mn.append(tempM)
+
         fig = matplotlib.figure.Figure(figsize=(5, 4), dpi=100)
 
         # Define Transfer Function
         num = np.array([2])
         den = np.array([3, 1])
+        # num = np.array([1.2])
+        # den = np.array([-0.5, -0.8])
 
         H = signal.TransferFunction(num, den)
         t, y = signal.step(H)
@@ -295,6 +380,25 @@ while True:
 
         draw_figure(window['-CANVAS-'].TKCanvas, fig)
 
+        if a[1] != None: a1 = a[1]
+        if a[2] != None: a2 = a[2]
+        if a[3] != None: a3 = a[3]
+        if a[4] != None: a4 = a[4]
+
+        if b[1] != None: b1 = b[1]
+        if b[2] != None: b2 = b[2]
+        if b[3] != None: b3 = b[3]
+        if b[4] != None: b4 = b[4]
+
+        for i in range(4):
+            cn[i] = (a1*c[i + 1]) + (a2*c[i + 2]) + \
+                     (b1*m[i + 1 + d]) + (b2*m[i + 2 + d])
+
+        plt.plot(cn, t)
+        plt.grid()
+
+        fig.add_subplot(111).plot(plt.show())
+
     # If a new coefficient a is added
     if event == 'Add a' or event == 'Delete a':
         if event == 'Delete a':
@@ -305,14 +409,10 @@ while True:
             print('\nNo more than 4 coefficients can be declared.')
             sg.popup_error(f'Unable to add more than 4 coefficients.')
 
-        # Define Transfer Function
-        num = np.array([2])
-        den = np.array([3, 1])
-
-        H = signal.TransferFunction(num, den)
-        t, y = signal.step(H)
-
         # Store submitted values in global variables
+        print('Values: \n')
+        print(values)
+
         k = values['-k-']
         T = values['-T-']
         tPrime = values['-tPrime-']
@@ -320,6 +420,138 @@ while True:
         outDist = values['-outputD-']
         tau = values['-tau-']
         mk = values['-mk-']
+
+        # Coefficients
+        coefficientsFrame = [
+            [sg.Frame(layout=[
+                    [sg.Text('a')],
+                    *[[sg.Text('a' + str(i)), sg.InputText(key='-a-' + str(i)), ]for i in range(numA)],
+                    [sg.Button('Add a'), sg.Button('Delete a')],
+                    [sg.Text('b')],
+                    *[[sg.Text('b' + str(i)), sg.InputText(key='-b-' + str(i)), ] for i in range(numB)],
+                    [sg.Button('Add b'), sg.Button('Delete b')],
+                ], title='Coefficients')
+            ]
+        ]
+
+        # Table
+        tableFrame = [
+            [sg.Frame(layout=[
+                [sg.Table(
+                    values=values,
+                    headings=headings,
+                    auto_size_columns=False,
+                    col_widths=list(map(lambda x:len(x)+1, headings)))
+                ]
+            ], title='Table of Values')]
+        ]
+
+        # Values
+        valuesFrame = [
+            [sg.Frame(layout=[
+                [sg.Text('Constant (k)', size=defaultSize), sg.InputText(key='-k-', size=defaultSize)],
+                [sg.Text('Delay (d)', size=defaultSize), sg.InputText(key='-d-', size=defaultSize)],
+                [sg.Text("\u03F4'", size=defaultSize), sg.InputText(key='-tPrime-', size=defaultSize)],
+                [sg.Text('Time Interval (T)', size=defaultSize), sg.InputText(key='-T-', size=defaultSize)]
+            ], title='')]
+        ]
+
+        functionValues = [
+            [sg.Frame(layout=[
+                [sg.Text('Time Constant (\u03F4)', size=defaultSize), sg.InputText(key='-tau-', size=defaultSize)],
+                [sg.Text('m[k]'), sg.InputText(key='-mk-', size=defaultSize)],
+                [sg.Text('Input Disturbance', size=defaultSize), sg.InputText(key='-inputD-', size=defaultSize)],
+                [sg.Text('Output Disturbance', size=defaultSize), sg.InputText(key='-outputD-', size=defaultSize)]
+            ], title='')]
+        ]
+
+        # Avoid reusing layout
+        layout = [
+            # Canvas
+            [sg.Text('Discrete Control Model Grapher')],
+            [sg.Canvas(key='-CANVAS-')],
+            [sg.Frame('Inputs', tableFrame, pad=(0, 5)), sg.Frame(
+                '', coefficientsFrame, pad=(0, (14, 5)), key='Hide')],
+            # Input Values
+            [sg.Frame('Values', valuesFrame, pad=(0, 5)), sg.Frame(
+                '', functionValues, pad=(0, (14, 5)), key='Hide')],
+            # Window Buttons
+            [sg.Button('Submit'), sg.Button('Show Plot'), sg.Button('Close')]
+        ]
+
+        windowTemp = sg.Window(
+            'Discrete Model Grapher',
+            location=(0, 0),
+            finalize=True,
+            element_justification='center',
+            font='Helvetica 18').Layout(layout).Finalize()
+        window.Close()
+        window = windowTemp
+
+    # If another coefficient b is added
+    if event == 'Add b' or event == 'Delete b':
+        if event == 'Delete b':
+            numB += -1
+        elif numB <= maxCoefficientIndex:
+            numB += 1
+        else:
+            print('\nUnable to add more than 4 coeefficients.')
+            sg.popup_error(f'Unable to add more than 4 coefficients.')
+
+        # Store submitted values in global variables
+        print('Values: \n')
+        print(values)
+        k = values['-k-']
+        T = values['-T-']
+        tPrime = values['-tPrime-']
+        inDist = values['-inputD-']
+        outDist = values['-outputD-']
+        tau = values['-tau-']
+        mk = values['-mk-']
+        
+        # Coefficients
+        coefficientsFrame = [
+            [sg.Frame(layout=[
+                    [sg.Text('a')],
+                    *[[sg.Text('a' + str(i)), sg.InputText(key='-a-' + str(i)), ]for i in range(numA)],
+                    [sg.Button('Add a'), sg.Button('Delete a')],
+                    [sg.Text('b')],
+                    *[[sg.Text('b' + str(i)), sg.InputText(key='-b-' + str(i)), ] for i in range(numB)],
+                    [sg.Button('Add b'), sg.Button('Delete b')],
+                ], title='Coefficients')
+            ]
+        ]
+
+        # Table
+        tableFrame = [
+            [sg.Frame(layout=[
+                [sg.Table(
+                    values=values,
+                    headings=headings,
+                    auto_size_columns=False,
+                    col_widths=list(map(lambda x:len(x)+1, headings)))
+                ]
+            ], title='Table of Values')]
+        ]
+
+        # Values
+        valuesFrame = [
+            [sg.Frame(layout=[
+                [sg.Text('Constant (k)', size=defaultSize), sg.InputText(key='-k-', size=defaultSize)],
+                [sg.Text('Delay (d)', size=defaultSize), sg.InputText(key='-d-', size=defaultSize)],
+                [sg.Text("\u03F4'", size=defaultSize), sg.InputText(key='-tPrime-', size=defaultSize)],
+                [sg.Text('Time Interval (T)', size=defaultSize), sg.InputText(key='-T-', size=defaultSize)]
+            ], title='')]
+        ]
+
+        functionValues = [
+            [sg.Frame(layout=[
+                [sg.Text('Time Constant (\u03F4)', size=defaultSize), sg.InputText(key='-tau-', size=defaultSize)],
+                [sg.Text('m[k]'), sg.InputText(key='-mk-', size=defaultSize)],
+                [sg.Text('Input Disturbance', size=defaultSize), sg.InputText(key='-inputD-', size=defaultSize)],
+                [sg.Text('Output Disturbance', size=defaultSize), sg.InputText(key='-outputD-', size=defaultSize)]
+            ], title='')]
+        ]
 
         # Avoid reusing layout
         layout = [
@@ -342,73 +574,24 @@ while True:
         window.Close()
         window = windowTemp
 
-        if showPlot == True:
-            fig = matplotlib.figure.Figure(figsize=(5, 4), dpi=100)
-
-            plt.plot(t, y)
-            plt.title('Step Response')
-            plt.xlabel('t')
-            plt.ylabel('y')
-            plt.grid()
-
-            fig.add_subplot(111).plot(plt.show())
-
-            draw_figure(window['-CANVAS-'].TKCanvas, fig)
-
-    # If another coefficient b is added
-    if event == 'Add b' or event == 'Delete b':
-        if event == 'Delete b':
-            numB += -1
-        elif numB <= maxCoefficientIndex:
-            numB += 1
+    if values['-mk-'] == None:
+        print('Updating mn...')
+        print('\ntempM')
+        mn.append(tempM)
+    
+    for i in range(numA):
+        ai = values['-a-' + str(i)]
+        if ai != None:
+            a.append(ai)
         else:
-            print('\nUnable to add more than 4 coeefficients.')
-            sg.popup_error(f'Unable to add more than 4 coefficients.')
+            a.append(0)
 
-        # Define Transfer Function
-        num = np.array([2])
-        den = np.array([3, 1])
-        H = signal.TransferFunction(num, den)
-        t, y = signal.step(H)
-
-        # Avoid reusing layout
-        layout = [
-            # Canvas
-            [sg.Text('Discrete Control Model Grapher')],
-            [sg.Canvas(key='-CANVAS-')],
-            [sg.Frame('Inputs', tableFrame, pad=(0, 5)), sg.Frame('',coefficientsFrame, pad=(0, (14, 5)), key='Hide')],
-            # Input Values
-            [sg.Frame('Values', valuesFrame, pad=(0, 5)), sg.Frame('', functionValues, pad=(0, (14, 5)), key='Hide')],
-            # Window Buttons
-            [sg.Button('Submit'), sg.Button('Show Plot'), sg.Button('Close')]
-        ]
-
-        # Store submitted values in global variables
-        k = values['-k-']
-        T = values['-T-']
-        tPrime = values['-tPrime-']
-        inDist = values['-inputD-']
-        outDist = values['-outputD-']
-        tau = values['-tau-']
-        mk = values['-mk-']
-
-        windowTemp = sg.Window('Discrete Model Grapher', location=(0, 0),
-                               finalize=True, element_justification='center', font='Helvetica 18').Layout(layout).Finalize()
-        window.Close()
-        window = windowTemp
-
-        if showPlot == True:
-            fig = matplotlib.figure.Figure(figsize=(5, 4), dpi=100)
-
-            plt.plot(t, y)
-            plt.title('Step Response')
-            plt.xlabel('t')
-            plt.ylabel('y')
-            plt.grid()
-
-            fig.add_subplot(111).plot(plt.show())
-
-            draw_figure(window['-CANVAS-'].TKCanvas, fig)
+    for i in range(numB):
+        bi = values['-b-' + str(i)]
+        if bi != None:
+            b.append(values['-b-' + str(i)])
+        else:
+            b.append(0)
 
 window.close()
 
