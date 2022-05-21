@@ -34,8 +34,8 @@ defaultSize = (15, 1)
 showPlot = False
 
 maxCoefficientIndex = 4
-numA = 0  # Number of a's coefficients
-numB = 0  # Number of b's coefficients
+numA = 3  # Number of a's coefficients
+numB = 3  # Number of b's coefficients
 numY = 0  # Number of outputs
 numU = 0  # Number of inputs
 
@@ -161,12 +161,10 @@ sg.set_options(font=('Courier New', 12))
 coefficientsFrame = [
     [sg.Frame(layout=[
             [sg.Text('a')],
-            *[[sg.Text('a' + str(i)), sg.InputText(key='-a-' + str(i)), ]
-                       for i in range(numA)],
+            *[[sg.Text('a' + str(i)), sg.InputText(key='-a-' + str(i)), ] for i in range(numA)],
             [sg.Button('Add a'), sg.Button('Delete a')],
             [sg.Text('b')],
-            *[[sg.Text('b' + str(i)), sg.InputText(key='-b-' + str(i)), ]
-                       for i in range(numB)],
+            *[[sg.Text('b' + str(i)), sg.InputText(key='-b-' + str(i)), ] for i in range(numB)],
             [sg.Button('Add b'), sg.Button('Delete b')],
         ], title='Coefficients')]
 ]
@@ -265,7 +263,7 @@ while True:
     if event == 'Show Plot':
         showPlot = True
         print('Generating graph...')
-        num = np.array([2])
+        num = np.array([12])
         den = np.array([3, 1])
 
         H = signal.TransferFunction(num, den)
