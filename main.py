@@ -34,8 +34,8 @@ defaultSize = (15, 1)
 showPlot = False
 
 maxCoefficientIndex = 4
-numA = 3  # Number of a's coefficients
-numB = 3  # Number of b's coefficients
+numA = 1  # Number of a's coefficients
+numB = 0  # Number of b's coefficients
 numY = 0  # Number of outputs
 numU = 0  # Number of inputs
 
@@ -161,11 +161,9 @@ sg.set_options(font=('Courier New', 12))
 coefficientsFrame = [
     [sg.Frame(layout=[
             [sg.Text('a')],
-            *[[sg.Text('a' + str(i)), sg.InputText(key='-a-' + str(i)), ] for i in range(numA)],
-            [sg.Button('Add a'), sg.Button('Delete a')],
+            *[[sg.Text('a' + str(i)), sg.InputText(key='-a-' + str(i)), ] for i in (n+1 for n in range(4))],
             [sg.Text('b')],
-            *[[sg.Text('b' + str(i)), sg.InputText(key='-b-' + str(i)), ] for i in range(numB)],
-            [sg.Button('Add b'), sg.Button('Delete b')],
+            *[[sg.Text('b' + str(i)), sg.InputText(key='-b-' + str(i)), ] for i in range(4)],
         ], title='Coefficients')]
 ]
 
@@ -396,181 +394,6 @@ while True:
         plt.grid()
 
         fig.add_subplot(111).plot(plt.show())
-
-    # If a new coefficient a is added
-    if event == 'Add a' or event == 'Delete a':
-        if event == 'Delete a':
-            numA += -1
-        elif numA <= maxCoefficientIndex:
-            numA += 1
-        else:
-            print('\nNo more than 4 coefficients can be declared.')
-            sg.popup_error(f'Unable to add more than 4 coefficients.')
-
-        # Store submitted values in global variables
-        print('Values: \n')
-        print(values)
-
-        k = values['-k-']
-        T = values['-T-']
-        tPrime = values['-tPrime-']
-        inDist = values['-inputD-']
-        outDist = values['-outputD-']
-        tau = values['-tau-']
-        mk = values['-mk-']
-
-        # Coefficients
-        coefficientsFrame = [
-            [sg.Frame(layout=[
-                    [sg.Text('a')],
-                    *[[sg.Text('a' + str(i)), sg.InputText(key='-a-' + str(i)), ]for i in range(numA)],
-                    [sg.Button('Add a'), sg.Button('Delete a')],
-                    [sg.Text('b')],
-                    *[[sg.Text('b' + str(i)), sg.InputText(key='-b-' + str(i)), ] for i in range(numB)],
-                    [sg.Button('Add b'), sg.Button('Delete b')],
-                ], title='Coefficients')
-            ]
-        ]
-
-        # Table
-        tableFrame = [
-            [sg.Frame(layout=[
-                [sg.Table(
-                    values=values,
-                    headings=headings,
-                    auto_size_columns=False,
-                    col_widths=list(map(lambda x:len(x)+1, headings)))
-                ]
-            ], title='Table of Values')]
-        ]
-
-        # Values
-        valuesFrame = [
-            [sg.Frame(layout=[
-                [sg.Text('Constant (k)', size=defaultSize), sg.InputText(key='-k-', size=defaultSize)],
-                [sg.Text('Delay (d)', size=defaultSize), sg.InputText(key='-d-', size=defaultSize)],
-                [sg.Text("\u03F4'", size=defaultSize), sg.InputText(key='-tPrime-', size=defaultSize)],
-                [sg.Text('Time Interval (T)', size=defaultSize), sg.InputText(key='-T-', size=defaultSize)]
-            ], title='')]
-        ]
-
-        functionValues = [
-            [sg.Frame(layout=[
-                [sg.Text('Time Constant (\u03F4)', size=defaultSize), sg.InputText(key='-tau-', size=defaultSize)],
-                [sg.Text('m[k]'), sg.InputText(key='-mk-', size=defaultSize)],
-                [sg.Text('Input Disturbance', size=defaultSize), sg.InputText(key='-inputD-', size=defaultSize)],
-                [sg.Text('Output Disturbance', size=defaultSize), sg.InputText(key='-outputD-', size=defaultSize)]
-            ], title='')]
-        ]
-
-        # Avoid reusing layout
-        layout = [
-            # Canvas
-            [sg.Text('Discrete Control Model Grapher')],
-            [sg.Canvas(key='-CANVAS-')],
-            [sg.Frame('Inputs', tableFrame, pad=(0, 5)), sg.Frame(
-                '', coefficientsFrame, pad=(0, (14, 5)), key='Hide')],
-            # Input Values
-            [sg.Frame('Values', valuesFrame, pad=(0, 5)), sg.Frame(
-                '', functionValues, pad=(0, (14, 5)), key='Hide')],
-            # Window Buttons
-            [sg.Button('Submit'), sg.Button('Show Plot'), sg.Button('Close')]
-        ]
-
-        windowTemp = sg.Window(
-            'Discrete Model Grapher',
-            location=(0, 0),
-            finalize=True,
-            element_justification='center',
-            font='Helvetica 18').Layout(layout).Finalize()
-        window.Close()
-        window = windowTemp
-
-    # If another coefficient b is added
-    if event == 'Add b' or event == 'Delete b':
-        if event == 'Delete b':
-            numB += -1
-        elif numB <= maxCoefficientIndex:
-            numB += 1
-        else:
-            print('\nUnable to add more than 4 coeefficients.')
-            sg.popup_error(f'Unable to add more than 4 coefficients.')
-
-        # Store submitted values in global variables
-        print('Values: \n')
-        print(values)
-        k = values['-k-']
-        T = values['-T-']
-        tPrime = values['-tPrime-']
-        inDist = values['-inputD-']
-        outDist = values['-outputD-']
-        tau = values['-tau-']
-        mk = values['-mk-']
-        
-        # Coefficients
-        coefficientsFrame = [
-            [sg.Frame(layout=[
-                    [sg.Text('a')],
-                    *[[sg.Text('a' + str(i)), sg.InputText(key='-a-' + str(i)), ]for i in range(numA)],
-                    [sg.Button('Add a'), sg.Button('Delete a')],
-                    [sg.Text('b')],
-                    *[[sg.Text('b' + str(i)), sg.InputText(key='-b-' + str(i)), ] for i in range(numB)],
-                    [sg.Button('Add b'), sg.Button('Delete b')],
-                ], title='Coefficients')
-            ]
-        ]
-
-        # Table
-        tableFrame = [
-            [sg.Frame(layout=[
-                [sg.Table(
-                    values=values,
-                    headings=headings,
-                    auto_size_columns=False,
-                    col_widths=list(map(lambda x:len(x)+1, headings)))
-                ]
-            ], title='Table of Values')]
-        ]
-
-        # Values
-        valuesFrame = [
-            [sg.Frame(layout=[
-                [sg.Text('Constant (k)', size=defaultSize), sg.InputText(key='-k-', size=defaultSize)],
-                [sg.Text('Delay (d)', size=defaultSize), sg.InputText(key='-d-', size=defaultSize)],
-                [sg.Text("\u03F4'", size=defaultSize), sg.InputText(key='-tPrime-', size=defaultSize)],
-                [sg.Text('Time Interval (T)', size=defaultSize), sg.InputText(key='-T-', size=defaultSize)]
-            ], title='')]
-        ]
-
-        functionValues = [
-            [sg.Frame(layout=[
-                [sg.Text('Time Constant (\u03F4)', size=defaultSize), sg.InputText(key='-tau-', size=defaultSize)],
-                [sg.Text('m[k]'), sg.InputText(key='-mk-', size=defaultSize)],
-                [sg.Text('Input Disturbance', size=defaultSize), sg.InputText(key='-inputD-', size=defaultSize)],
-                [sg.Text('Output Disturbance', size=defaultSize), sg.InputText(key='-outputD-', size=defaultSize)]
-            ], title='')]
-        ]
-
-        # Avoid reusing layout
-        layout = [
-            # Canvas
-            [sg.Text('Discrete Control Model Grapher')],
-            [sg.Canvas(key='-CANVAS-')],
-            [sg.Frame('Inputs', tableFrame, pad=(0, 5)), sg.Frame('',coefficientsFrame, pad=(0, (14, 5)), key='Hide')],
-            # Input Values
-            [sg.Frame('Values', valuesFrame, pad=(0, 5)), sg.Frame('', functionValues, pad=(0, (14, 5)), key='Hide')],
-            # Window Buttons
-            [sg.Button('Submit'), sg.Button('Show Plot'), sg.Button('Close')]
-        ]
-
-        windowTemp = sg.Window(
-            'Discrete Model Grapher', 
-            location=(0, 0),
-            finalize=True, 
-            element_justification='center', 
-            font='Helvetica 18').Layout(layout).Finalize()
-        window.Close()
-        window = windowTemp
 
     if values['-mk-'] == None:
         print('Updating mn...')
