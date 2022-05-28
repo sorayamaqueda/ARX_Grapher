@@ -12,12 +12,12 @@
 # Based on an Excel document, we need to preview how the graph will be.
 # The first delivery needs to receive inputs from User, and then be able to graph a first order ARX Model.
 
+from cmath import cos
 import control.matlab as control
 import scipy.signal as signal
 import matplotlib.pyplot as plt
 import PySimpleGUI as sg  # Graphic Interface Library
 import seaborn as sns  # Library for decorations
-import pandas as pd  # Data Analysis Library
 import numpy as np  # Math Library
 import matplotlib  # Grapher Library
 
@@ -26,10 +26,11 @@ from math import e, trunc
 
 matplotlib.use('TkAgg')
 
-# Global Contro Variables
+# Global Design Variables
 defaultSize = (15, 1)
 showPlot = False
 
+# Global Modeling Variables
 numA = 1  # Number of a's coefficients
 numB = 0  # Number of b's coefficients
 numY = 0  # Number of outputs
@@ -45,17 +46,19 @@ inDist = 0  # Input Disturbance
 outDist = 0  # Output Disturbance
 mk = 0  # Input Signal
 d = 0 # Delay
+m = 0 # Modified Z Transform
+zeta = 0
+wn = 0
 
 # Coefficients (Maximum 4 per coefficient)
 # If not given, value must be 0
-a = []
-b = []
-
+a = 0
 a1 = 0
 a2 = 0
 a3 = 0
 a4 = 0
 
+b = 0
 b1 = 0
 b2 = 0
 b3 = 0
@@ -66,9 +69,12 @@ cn = []
 mn = []
 tempM = 0
 
+# Case Control Flags
+isARX  = True
+isFOM = False
+isSOM = False
+
 # Function to draw Graph
-
-
 def draw_figure(canvas, figure):
     figure_canvas_agg = FigureCanvasTkAgg(figure, canvas)
     figure_canvas_agg.draw()
@@ -79,8 +85,6 @@ def draw_figure(canvas, figure):
 ################### Plant Control Discrete Model ###################
 
 # Case Determiner
-
-
 def case(d, T):
     tPrime = d*T
 
@@ -143,14 +147,6 @@ def PulseTransferFunction(kMax):
 
     return cn
 
-
-# Equations' Table
-headers = {'k': [], 'y(k)': [], 'u(k)': []}
-
-table = pd.DataFrame(headers)
-headings = list(headers)
-values = table.values.tolist()
-
 # Theme and Styling
 sg.theme('DarkBlue')
 sg.set_options(font=('Courier New', 12))
@@ -162,19 +158,7 @@ coefficientsFrame = [
             *[[sg.Text('a' + str(i)), sg.InputText(key='-a-' + str(i)), ] for i in (n+1 for n in range(4))],
             [sg.Text('b')],
             *[[sg.Text('b' + str(i)), sg.InputText(key='-b-' + str(i)), ] for i in range(4)],
-        ], title='Coefficients')]
-]
-
-# Table
-tableFrame = [
-    [sg.Frame(layout=[
-        [sg.Table(
-            values=values,
-            headings=headings,
-            auto_size_columns=False,
-            col_widths=list(map(lambda x:len(x)+1, headings)))
-        ]
-    ], title='Table of Values')]
+        ], title='')]
 ]
 
 # Values
@@ -221,9 +205,8 @@ layout = [
     # Canvas
     [sg.Text('Discrete Control Model Grapher')],
     [sg.Canvas(key='-CANVAS-')],
-    # Coefficients and table
-    [sg.Frame('Inputs', tableFrame, pad=(0, 5)), sg.Frame(
-        '', coefficientsFrame, pad=(0, (14, 5)), key='Hide')],
+    # Coefficients
+    [sg.Frame('Coefficients', coefficientsFrame, pad=(0, (14, 5)), key='Hide')],
     # Input Values
     [sg.Frame('Values', valuesFrame, pad=(0, 5)), sg.Frame(
         '', functionValues, pad=(0, (14, 5)), key='Hide')],
@@ -284,32 +267,53 @@ while True:
         plt.grid()
         fig.add_subplot(111).plot(plt.show())
 
+        # We store any values that the user has given
+        if values['-k-'] is not None: k = values['-k-']
+        T = values['-T-']
+        tau = values['-tau-']
+        t = values['-t-']
+        tPrime = values['-tPrime-']
+        inDist = values['-inputD-']
+        outDist = values['-outputD-']
+        d = values['-d-']
+        mk = values['-mk-']
+
+        # Calcualte others based on case
+        if isFOM == True:
+            a1 = e**(-T/tau)
+            b1 = k * (1 - (e**(-m*T / tau)))
+            b2 = k * ((e**(-m*T / tau)) - a1)
+            d = d(tPrime, T)
+            t = t(tPrime, T, d)
+            m = 1 - (t / T)
+        elif isSOM == True:
+            wn = values['-naturalFreq-']
+            zeta = values['-zeta-']
+            a = wn * zeta
+            b = wn * sqrt(1 - zeta**2)
+            d = d(tPrime, T)
+            a1 = (2*e**(2*a*T))*cos(b*T)
+            a2 = e**(-2*a*T)
+            b1 = k * (1 )
+
     if values['-mk-'] == None:
         print('Updating mn...')
         print('\ntempM')
         mn.append(tempM)
     
+    if values['-ARX-']:
+        print('return to original layout')
+
     if values['-SOM-']:
 
+        # Coefficients
         coefficientsFrame = [
         [sg.Frame(layout=[
                 [sg.Text('a')],
                 *[[sg.Text('a' + str(i)), sg.InputText(key='-a-' + str(i)), ] for i in (n+1 for n in range(4))],
                 [sg.Text('b')],
                 *[[sg.Text('b' + str(i)), sg.InputText(key='-b-' + str(i)), ] for i in range(4)],
-            ], title='Coefficients')]
-        ]
-
-        # Table
-        tableFrame = [
-            [sg.Frame(layout=[
-                [sg.Table(
-                    values=values,
-                    headings=headings,
-                    auto_size_columns=False,
-                    col_widths=list(map(lambda x:len(x)+1, headings)))
-                ]
-            ], title='Table of Values')]
+            ], title='')]
         ]
 
         # Values
@@ -361,8 +365,7 @@ while True:
             [sg.Text('Discrete Control Model Grapher')],
             [sg.Canvas(key='-CANVAS-')],
             # Coefficients and table
-            [sg.Frame('Inputs', tableFrame, pad=(0, 5)), sg.Frame(
-                '', coefficientsFrame, pad=(0, (14, 5)), key='Hide')],
+            [sg.Frame('Coefficients', coefficientsFrame, pad=(0, (14, 5)), key='Hide')],
             # Input Values
             [sg.Frame('Values', valuesFrame, pad=(0, 5)), sg.Frame(
                 '', functionValues, pad=(0, (14, 5)), key='Hide')],
@@ -388,19 +391,7 @@ while True:
                 *[[sg.Text('a' + str(i)), sg.InputText(key='-a' + str(i) + '-'), ] for i in (n+2 for n in range(4))],
                 [sg.Text('b')],
                 *[[sg.Text('b' + str(i)), sg.InputText(key='-b' + str(i) + '-'), ] for i in (n+3 for n in range(4))],
-            ], title='Coefficients')]
-        ]
-
-        # Table
-        tableFrame = [
-            [sg.Frame(layout=[
-                [sg.Table(
-                    values=values,
-                    headings=headings,
-                    auto_size_columns=False,
-                    col_widths=list(map(lambda x:len(x)+1, headings)))
-                ]
-            ], title='Table of Values')]
+            ], title='')]
         ]
 
         # Values
@@ -413,11 +404,7 @@ while True:
                 [sg.Text("\u03F4'", size=defaultSize), sg.InputText(
                 key='-tPrime-', size=defaultSize)],
                 [sg.Text('Time Interval (T)', size=defaultSize),
-                sg.InputText(key='-T-', size=defaultSize)],
-                # [sg.Text('Zeta', size=defaultSize), 
-                # sg.InputText(key='-zeta-', size=defaultSize)],
-                # [sg.Text('Wn', size=defaultSize),
-                # sg.InputText(key='-naturalFreq-', size=defaultSize)]
+                sg.InputText(key='-T-', size=defaultSize)]
             ], title='')]
         ]
 
@@ -452,8 +439,7 @@ while True:
             [sg.Text('Discrete Control Model Grapher')],
             [sg.Canvas(key='-CANVAS-')],
             # Coefficients and table
-            [sg.Frame('Inputs', tableFrame, pad=(0, 5)), sg.Frame(
-                '', coefficientsFrame, pad=(0, (14, 5)), key='Hide')],
+            [sg.Frame('Coefficients', coefficientsFrame, pad=(0, (14, 5)), key='Hide')],
             # Input Values
             [sg.Frame('Values', valuesFrame, pad=(0, 5)), sg.Frame(
                 '', functionValues, pad=(0, (14, 5)), key='Hide')],
@@ -470,21 +456,6 @@ while True:
         ).Layout(layout).Finalize()
         window.Close()
         window = windowTemp
-
-
-    for i in (n+1 for n in range(4)):
-        ai = values['-a-' + str(i)]
-        if ai != None:
-            a.append(ai)
-        else:
-            a.append(0)
-
-    for i in range(numB):
-        bi = values['-b-' + str(i)]
-        if bi != None:
-            b.append(values['-b-' + str(i)])
-        else:
-            b.append(0)
 
 window.close()
 
