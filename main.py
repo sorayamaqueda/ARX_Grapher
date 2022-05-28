@@ -12,9 +12,6 @@
 # Based on an Excel document, we need to preview how the graph will be.
 # The first delivery needs to receive inputs from User, and then be able to graph a first order ARX Model.
 
-from pickle import NONE
-from turtle import title
-
 import control.matlab as control
 import scipy.signal as signal
 import matplotlib.pyplot as plt
@@ -33,7 +30,6 @@ matplotlib.use('TkAgg')
 defaultSize = (15, 1)
 showPlot = False
 
-maxCoefficientIndex = 4
 numA = 1  # Number of a's coefficients
 numB = 0  # Number of b's coefficients
 numY = 0  # Number of outputs
@@ -48,6 +44,7 @@ tPrime = 0  # Theta Prime
 inDist = 0  # Input Disturbance
 outDist = 0  # Output Disturbance
 mk = 0  # Input Signal
+d = 0 # Delay
 
 # Coefficients (Maximum 4 per coefficient)
 # If not given, value must be 0
@@ -103,26 +100,27 @@ def bn(T, tao, k):
     return k*(1-(e**(-T/tao)))
 
 # Delay
-
-
 def d(tPrime, T):
     return trunc(tPrime/T)
 
 # Theta
-
-
 def t(tPrime, T, d):
     return tPrime-(d*T)
 
 # Theta Prime
-
-
 def tPrime(t, T, d):
     return t+(d*T)
 
+# Modified Z
+def m(t, T):
+    return 1 - (t / T)
+
+# First Order Model ARX Process
+def FirstOrderModel():
+    # c(k)=a1*c(k-1) + ... + a4*c(k-4) + b0*m(k-d) + ... + b4*m(k-4-d)
+    return 0
+
 # Transfer Function
-
-
 def HGp(cn, mn):
     return cn/mn
 
@@ -186,13 +184,14 @@ valuesFrame = [
                  sg.InputText(key='-k-', size=defaultSize)],
         [sg.Text('Delay (d)', size=defaultSize),
                  sg.InputText(key='-d-', size=defaultSize)],
-        [sg.Text("\u03F4'", size=defaultSize), sg.InputText(
-            key='-tPrime-', size=defaultSize)],
+        # [sg.Text("\u03F4'", size=defaultSize), sg.InputText(
+        #     key='-tPrime-', size=defaultSize)],
         [sg.Text('Time Interval (T)', size=defaultSize),
                  sg.InputText(key='-T-', size=defaultSize)]
     ], title='')]
 ]
 
+# Constant Values for Models
 functionValues = [
     [sg.Frame(layout=[
         [sg.Text('Time Constant (\u03F4)', size=defaultSize),
@@ -205,18 +204,31 @@ functionValues = [
     ], title='')]
 ]
 
+# Menu
+models = [
+    [sg.Radio('Model ARX', key='-ARX-', group_id='models', enable_events=True, default=True),
+    sg.Radio('First Order Model', key='-FOM-', group_id='models', enable_events=True),
+    sg.Radio('Second Order Low Damp Model', key='-SOM-', group_id='models', enable_events=True)]
+]
+
+# Buttons
+buttons = [
+    [sg.Button('Plot'), sg.Button('Close')]
+]
+
 # Define the Layout
 layout = [
     # Canvas
     [sg.Text('Discrete Control Model Grapher')],
     [sg.Canvas(key='-CANVAS-')],
+    # Coefficients and table
     [sg.Frame('Inputs', tableFrame, pad=(0, 5)), sg.Frame(
         '', coefficientsFrame, pad=(0, (14, 5)), key='Hide')],
     # Input Values
     [sg.Frame('Values', valuesFrame, pad=(0, 5)), sg.Frame(
         '', functionValues, pad=(0, (14, 5)), key='Hide')],
-    # Window Buttons
-    [sg.Button('Submit'), sg.Button('Show Plot'), sg.Button('Close')]
+    # Event Buttons and Menu
+    [sg.Frame('Menu', models)], [sg.Frame('', buttons)]
 ]
 
 # Create the window
@@ -258,9 +270,8 @@ while True:
         break
 
     # Enable plot visibility
-    if event == 'Show Plot':
+    if event == 'Plot':
         showPlot = True
-        print('Generating graph...')
         num = np.array([12])
         den = np.array([3, 1])
 
@@ -273,20 +284,20 @@ while True:
         plt.grid()
         fig.add_subplot(111).plot(plt.show())
 
-    # Store input values
-    if event == 'Submit':
-        
-        # Coefficients
+    if values['-mk-'] == None:
+        print('Updating mn...')
+        print('\ntempM')
+        mn.append(tempM)
+    
+    if values['-SOM-']:
+
         coefficientsFrame = [
-            [sg.Frame(layout=[
-                    [sg.Text('a')],
-                    *[[sg.Text('a' + str(i)), sg.InputText(key='-a-' + str(i)), ]for i in range(numA)],
-                    [sg.Button('Add a'), sg.Button('Delete a')],
-                    [sg.Text('b')],
-                    *[[sg.Text('b' + str(i)), sg.InputText(key='-b-' + str(i)), ] for i in range(numB)],
-                    [sg.Button('Add b'), sg.Button('Delete b')],
-                ], title='Coefficients')
-            ]
+        [sg.Frame(layout=[
+                [sg.Text('a')],
+                *[[sg.Text('a' + str(i)), sg.InputText(key='-a-' + str(i)), ] for i in (n+1 for n in range(4))],
+                [sg.Text('b')],
+                *[[sg.Text('b' + str(i)), sg.InputText(key='-b-' + str(i)), ] for i in range(4)],
+            ], title='Coefficients')]
         ]
 
         # Table
@@ -304,34 +315,59 @@ while True:
         # Values
         valuesFrame = [
             [sg.Frame(layout=[
-                [sg.Text('Constant (k)', size=defaultSize), sg.InputText(key='-k-', size=defaultSize)],
-                [sg.Text('Delay (d)', size=defaultSize), sg.InputText(key='-d-', size=defaultSize)],
-                [sg.Text("\u03F4'", size=defaultSize), sg.InputText(key='-tPrime-', size=defaultSize)],
-                [sg.Text('Time Interval (T)', size=defaultSize), sg.InputText(key='-T-', size=defaultSize)]
+                [sg.Text('Constant (k)', size=defaultSize),
+                sg.InputText(key='-k-', size=defaultSize)],
+                [sg.Text('Delay (d)', size=defaultSize),
+                sg.InputText(key='-d-', size=defaultSize)],
+                [sg.Text("\u03F4'", size=defaultSize), sg.InputText(
+                key='-tPrime-', size=defaultSize)],
+                [sg.Text('Time Interval (T)', size=defaultSize),
+                sg.InputText(key='-T-', size=defaultSize)],
+                [sg.Text('Zeta', size=defaultSize), 
+                sg.InputText(key='-zeta-', size=defaultSize)],
+                [sg.Text('Wn', size=defaultSize),
+                sg.InputText(key='-naturalFreq-', size=defaultSize)]
             ], title='')]
         ]
 
+        # Constant Values for Models
         functionValues = [
             [sg.Frame(layout=[
-                [sg.Text('Time Constant (\u03F4)', size=defaultSize), sg.InputText(key='-tau-', size=defaultSize)],
+                [sg.Text('Time Constant (\u03F4)', size=defaultSize),
+                sg.InputText(key='-tau-', size=defaultSize)],
                 [sg.Text('m[k]'), sg.InputText(key='-mk-', size=defaultSize)],
-                [sg.Text('Input Disturbance', size=defaultSize), sg.InputText(key='-inputD-', size=defaultSize)],
-                [sg.Text('Output Disturbance', size=defaultSize), sg.InputText(key='-outputD-', size=defaultSize)]
+                [sg.Text('Input Disturbance', size=defaultSize),
+                sg.InputText(key='-inputD-', size=defaultSize)],
+                [sg.Text('Output Disturbance', size=defaultSize),
+                sg.InputText(key='-outputD-', size=defaultSize)]
             ], title='')]
         ]
 
-        # Avoid reusing layout
+        # Menu
+        models = [
+            [sg.Radio('Model ARX', key='-ARX-', group_id='models', enable_events=True),
+            sg.Radio('First Order Model', key='-FOM-', group_id='models', enable_events=True),
+            sg.Radio('Second Order Low Damp Model', key='-SOM-', group_id='models', enable_events=True)]
+        ]
+
+        # Buttons
+        buttons = [
+            [sg.Button('Plot'), sg.Button('Close')]
+        ]
+
+        # Define the Layout
         layout = [
             # Canvas
             [sg.Text('Discrete Control Model Grapher')],
             [sg.Canvas(key='-CANVAS-')],
+            # Coefficients and table
             [sg.Frame('Inputs', tableFrame, pad=(0, 5)), sg.Frame(
                 '', coefficientsFrame, pad=(0, (14, 5)), key='Hide')],
             # Input Values
             [sg.Frame('Values', valuesFrame, pad=(0, 5)), sg.Frame(
                 '', functionValues, pad=(0, (14, 5)), key='Hide')],
-            # Window Buttons
-            [sg.Button('Submit'), sg.Button('Show Plot'), sg.Button('Close')]
+            # Event Buttons and Menu
+            [sg.Frame('Menu', models)], [sg.Frame('', buttons)]
         ]
 
         windowTemp = sg.Window(
@@ -339,68 +375,104 @@ while True:
             location=(0, 0),
             finalize=True,
             element_justification='center',
-            font='Helvetica 18').Layout(layout).Finalize()
+            font='Helvetica 18'
+        ).Layout(layout).Finalize()
         window.Close()
         window = windowTemp
 
-        # Store submitted values in global variables
-        k = values['-k-']
-        T = values['-T-']
-        tPrime = values['-tPrime-']
-        inDist = values['-inputD-']
-        outDist = values['-outputD-']
-        tau = values['-tau-']
-        mk = values['-mk-']
+    if values['-FOM-']:
 
-        tempM = mk
-        mn.append(tempM)
+        coefficientsFrame = [
+            [sg.Frame(layout=[
+                [sg.Text('a')],
+                *[[sg.Text('a' + str(i)), sg.InputText(key='-a' + str(i) + '-'), ] for i in (n+2 for n in range(4))],
+                [sg.Text('b')],
+                *[[sg.Text('b' + str(i)), sg.InputText(key='-b' + str(i) + '-'), ] for i in (n+3 for n in range(4))],
+            ], title='Coefficients')]
+        ]
 
-        fig = matplotlib.figure.Figure(figsize=(5, 4), dpi=100)
+        # Table
+        tableFrame = [
+            [sg.Frame(layout=[
+                [sg.Table(
+                    values=values,
+                    headings=headings,
+                    auto_size_columns=False,
+                    col_widths=list(map(lambda x:len(x)+1, headings)))
+                ]
+            ], title='Table of Values')]
+        ]
 
-        # Define Transfer Function
-        num = np.array([2])
-        den = np.array([3, 1])
-        # num = np.array([1.2])
-        # den = np.array([-0.5, -0.8])
+        # Values
+        valuesFrame = [
+            [sg.Frame(layout=[
+                [sg.Text('Constant (k)', size=defaultSize),
+                sg.InputText(key='-k-', size=defaultSize)],
+                [sg.Text('Delay (d)', size=defaultSize),
+                sg.InputText(key='-d-', size=defaultSize)],
+                [sg.Text("\u03F4'", size=defaultSize), sg.InputText(
+                key='-tPrime-', size=defaultSize)],
+                [sg.Text('Time Interval (T)', size=defaultSize),
+                sg.InputText(key='-T-', size=defaultSize)],
+                # [sg.Text('Zeta', size=defaultSize), 
+                # sg.InputText(key='-zeta-', size=defaultSize)],
+                # [sg.Text('Wn', size=defaultSize),
+                # sg.InputText(key='-naturalFreq-', size=defaultSize)]
+            ], title='')]
+        ]
 
-        H = signal.TransferFunction(num, den)
-        t, y = signal.step(H)
+        # Constant Values for Models
+        functionValues = [
+            [sg.Frame(layout=[
+                [sg.Text('Time Constant (\u03F4)', size=defaultSize),
+                sg.InputText(key='-tau-', size=defaultSize)],
+                [sg.Text('m[k]'), sg.InputText(key='-mk-', size=defaultSize)],
+                [sg.Text('Input Disturbance', size=defaultSize),
+                sg.InputText(key='-inputD-', size=defaultSize)],
+                [sg.Text('Output Disturbance', size=defaultSize),
+                sg.InputText(key='-outputD-', size=defaultSize)]
+            ], title='')]
+        ]
 
-        plt.plot(t, y)
-        plt.title('Step Response')
-        plt.xlabel('t')
-        plt.ylabel('y')
-        plt.grid()
+        # Menu
+        models = [
+            [sg.Radio('Model ARX', key='-ARX-', group_id='models', enable_events=True),
+            sg.Radio('First Order Model', key='-FOM-', group_id='models', enable_events=True),
+            sg.Radio('Second Order Low Damp Model', key='-SOM-', group_id='models', enable_events=True)]
+        ]
 
-        fig.add_subplot(111).plot(plt.show())
+        # Buttons
+        buttons = [
+            [sg.Button('Plot'), sg.Button('Close')]
+        ]
 
-        draw_figure(window['-CANVAS-'].TKCanvas, fig)
+        # Define the Layout
+        layout = [
+            # Canvas
+            [sg.Text('Discrete Control Model Grapher')],
+            [sg.Canvas(key='-CANVAS-')],
+            # Coefficients and table
+            [sg.Frame('Inputs', tableFrame, pad=(0, 5)), sg.Frame(
+                '', coefficientsFrame, pad=(0, (14, 5)), key='Hide')],
+            # Input Values
+            [sg.Frame('Values', valuesFrame, pad=(0, 5)), sg.Frame(
+                '', functionValues, pad=(0, (14, 5)), key='Hide')],
+            # Event Buttons and Menu
+            [sg.Frame('Menu', models)], [sg.Frame('', buttons)]
+        ]
 
-        if a[1] != None: a1 = a[1]
-        if a[2] != None: a2 = a[2]
-        if a[3] != None: a3 = a[3]
-        if a[4] != None: a4 = a[4]
+        windowTemp = sg.Window(
+            'Discrete Model Grapher',
+            location=(0, 0),
+            finalize=True,
+            element_justification='center',
+            font='Helvetica 18'
+        ).Layout(layout).Finalize()
+        window.Close()
+        window = windowTemp
 
-        if b[1] != None: b1 = b[1]
-        if b[2] != None: b2 = b[2]
-        if b[3] != None: b3 = b[3]
-        if b[4] != None: b4 = b[4]
 
-        for i in range(4):
-            cn[i] = (a1*c[i + 1]) + (a2*c[i + 2]) + \
-                     (b1*m[i + 1 + d]) + (b2*m[i + 2 + d])
-
-        plt.plot(cn, t)
-        plt.grid()
-
-        fig.add_subplot(111).plot(plt.show())
-
-    if values['-mk-'] == None:
-        print('Updating mn...')
-        print('\ntempM')
-        mn.append(tempM)
-    
-    for i in range(numA):
+    for i in (n+1 for n in range(4)):
         ai = values['-a-' + str(i)]
         if ai != None:
             a.append(ai)
