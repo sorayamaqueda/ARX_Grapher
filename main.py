@@ -12,7 +12,6 @@
 # Based on an Excel document, we need to preview how the graph will be.
 # The first delivery needs to receive inputs from User, and then be able to graph a first order ARX Model.
 
-from cmath import cos
 import control.matlab as control
 import scipy.signal as signal
 import matplotlib.pyplot as plt
@@ -22,7 +21,7 @@ import numpy as np  # Math Library
 import matplotlib  # Grapher Library
 
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from math import e, trunc
+from math import e, trunc, sqrt, cos
 
 matplotlib.use('TkAgg')
 
@@ -49,6 +48,7 @@ d = 0 # Delay
 m = 0 # Modified Z Transform
 zeta = 0
 wn = 0
+kMax = 10
 
 # Coefficients (Maximum 4 per coefficient)
 # If not given, value must be 0
@@ -59,10 +59,14 @@ a3 = 0
 a4 = 0
 
 b = 0
+b0 = 0
 b1 = 0
 b2 = 0
 b3 = 0
 b4 = 0
+
+an = []
+bn = []
 
 # Result lists
 cn = []
@@ -96,16 +100,16 @@ def case(d, T):
         return False
 
 
-def an(T, tao):
-    return e**(-T / tao)
+# def an(T, tao):
+#     return e**(-T / tao)
 
 
-def bn(T, tao, k):
-    return k*(1-(e**(-T/tao)))
+# def bn(T, tao, k):
+#     return k*(1-(e**(-T/tao)))
 
 # Delay
-def d(tPrime, T):
-    return trunc(tPrime/T)
+# def d(tPrime, T):
+#     return trunc(tPrime/T)
 
 # Theta
 def t(tPrime, T, d):
@@ -171,14 +175,15 @@ valuesFrame = [
         # [sg.Text("\u03F4'", size=defaultSize), sg.InputText(
         #     key='-tPrime-', size=defaultSize)],
         [sg.Text('Time Interval (T)', size=defaultSize),
-                 sg.InputText(key='-T-', size=defaultSize)]
+                 sg.InputText(key='-T-', size=defaultSize)],
+        [sg.Text('k Max:'), sg.InputText(key='-kMax-', size=defaultSize)]
     ], title='')]
 ]
 
 # Constant Values for Models
 functionValues = [
     [sg.Frame(layout=[
-        [sg.Text('Time Constant (\u03F4)', size=defaultSize),
+        [sg.Text('Time Constant (\u03C4)', size=defaultSize),
                  sg.InputText(key='-tau-', size=defaultSize)],
         [sg.Text('m[k]'), sg.InputText(key='-mk-', size=defaultSize)],
         [sg.Text('Input Disturbance', size=defaultSize),
@@ -255,24 +260,11 @@ while True:
     # Enable plot visibility
     if event == 'Plot':
         showPlot = True
-        num = np.array([12])
-        den = np.array([3, 1])
-
-        H = signal.TransferFunction(num, den)
-
-        t, m = signal.step(H)
-        plt.plot(t, m)
-        plt.xlabel('t')
-        plt.ylabel('m[k]')
-        plt.grid()
-        fig.add_subplot(111).plot(plt.show())
 
         # We store any values that the user has given
         if values['-k-'] is not None: k = values['-k-']
         T = values['-T-']
         tau = values['-tau-']
-        t = values['-t-']
-        tPrime = values['-tPrime-']
         inDist = values['-inputD-']
         outDist = values['-outputD-']
         d = values['-d-']
@@ -280,21 +272,52 @@ while True:
 
         # Calcualte others based on case
         if isFOM == True:
+            tPrime = values['-tPrime-']
             a1 = e**(-T/tau)
             b1 = k * (1 - (e**(-m*T / tau)))
             b2 = k * ((e**(-m*T / tau)) - a1)
-            d = d(tPrime, T)
+            d = trunc(tPrime / T)
             t = t(tPrime, T, d)
             m = 1 - (t / T)
         elif isSOM == True:
+            tPrime = values['-tPrime-']
             wn = values['-naturalFreq-']
             zeta = values['-zeta-']
             a = wn * zeta
             b = wn * sqrt(1 - zeta**2)
-            d = d(tPrime, T)
+            d = trun(tPrime / T)
             a1 = (2*e**(2*a*T))*cos(b*T)
             a2 = e**(-2*a*T)
             b1 = k * (1 )
+
+        # num = np.array([12])
+        # den = np.array([3, 1])
+
+        # H = signal.TransferFunction(num, den)
+        tempM = mk
+        v = 0
+        for i in range(kMax):
+            if (i + v) > len(cn):
+                cn.append(0)
+            if (i + int(d) + v) > len(mn):
+                mn.append(float(mk))
+            print(v)
+            print(cn)
+            print(mn)
+            v+=1
+
+        delay = float(d)
+        for k in range(kMax):
+            cn[k] = (a1*cn[k + 1]) + (a2*cn[k + 2]) + (a3*cn[k + 3]) + (a4*cn[k + 4])
+            + (b0*mn[k + delay]) + (b1*mn[k + 1 + delay]) + (b2*mn[k + 2 + delay]) + (b3*mn[k + 3 + delay]) + (b4*mn[k + 4 + delay])
+        print(cn)
+        t, m = signal.step(H)
+        plt.plot(t, m)
+        plt.xlabel('t')
+        plt.ylabel('m[k]')
+        plt.grid()
+        fig.add_subplot(111).plot(plt.show())
+
 
     if values['-mk-'] == None:
         print('Updating mn...')
@@ -327,6 +350,7 @@ while True:
                 key='-tPrime-', size=defaultSize)],
                 [sg.Text('Time Interval (T)', size=defaultSize),
                 sg.InputText(key='-T-', size=defaultSize)],
+                [sg.Text('k Max:'), sg.InputText(key='-kMax-', size=defaultSize)],
                 [sg.Text('Zeta', size=defaultSize), 
                 sg.InputText(key='-zeta-', size=defaultSize)],
                 [sg.Text('Wn', size=defaultSize),
@@ -337,7 +361,7 @@ while True:
         # Constant Values for Models
         functionValues = [
             [sg.Frame(layout=[
-                [sg.Text('Time Constant (\u03F4)', size=defaultSize),
+                [sg.Text('Time Constant (\u03C4)', size=defaultSize),
                 sg.InputText(key='-tau-', size=defaultSize)],
                 [sg.Text('m[k]'), sg.InputText(key='-mk-', size=defaultSize)],
                 [sg.Text('Input Disturbance', size=defaultSize),
@@ -401,17 +425,20 @@ while True:
                 sg.InputText(key='-k-', size=defaultSize)],
                 [sg.Text('Delay (d)', size=defaultSize),
                 sg.InputText(key='-d-', size=defaultSize)],
+                [sg.Text("\u03F4", size=defaultSize), sg.InputText(
+                key='-theta-', size=defaultSize)],
                 [sg.Text("\u03F4'", size=defaultSize), sg.InputText(
                 key='-tPrime-', size=defaultSize)],
                 [sg.Text('Time Interval (T)', size=defaultSize),
-                sg.InputText(key='-T-', size=defaultSize)]
+                sg.InputText(key='-T-', size=defaultSize)],
+                [sg.Text('k Max:'), sg.InputText(key='-kMax-', size=defaultSize)]
             ], title='')]
         ]
 
         # Constant Values for Models
         functionValues = [
             [sg.Frame(layout=[
-                [sg.Text('Time Constant (\u03F4)', size=defaultSize),
+                [sg.Text('Time Constant (\u03C4)', size=defaultSize),
                 sg.InputText(key='-tau-', size=defaultSize)],
                 [sg.Text('m[k]'), sg.InputText(key='-mk-', size=defaultSize)],
                 [sg.Text('Input Disturbance', size=defaultSize),
