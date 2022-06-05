@@ -86,7 +86,7 @@ def draw_figure(canvas, figure):
 
     return figure_canvas_agg
 
-################### Plant Control Discrete Model ###################
+################### Plant Control Discrete Equivalent Model ###################
 
 # Case Determiner
 def case(d, T):
@@ -98,18 +98,6 @@ def case(d, T):
     else:
         # Case 2: there's a delay theta
         return False
-
-
-# def an(T, tao):
-#     return e**(-T / tao)
-
-
-# def bn(T, tao, k):
-#     return k*(1-(e**(-T/tao)))
-
-# Delay
-# def d(tPrime, T):
-#     return trunc(tPrime/T)
 
 # Theta
 def t(tPrime, T, d):
@@ -131,10 +119,6 @@ def FirstOrderModel():
 # Transfer Function
 def HGp(cn, mn):
     return cn/mn
-
-
-# def mn(k, t, T, z, d):
-#     return k*(1-(e**(-T/t)))*(z**(-1-d))
 
 # Difference Equations
 
@@ -159,8 +143,10 @@ sg.set_options(font=('Courier New', 12))
 coefficientsFrame = [
     [sg.Frame(layout=[
             [sg.Text('a')],
+            #                                                                       a1 - a4
             *[[sg.Text('a' + str(i)), sg.InputText(key='-a-' + str(i)), ] for i in (n+1 for n in range(4))],
             [sg.Text('b')],
+            #                                                                   b0 - b4
             *[[sg.Text('b' + str(i)), sg.InputText(key='-b-' + str(i)), ] for i in range(4)],
         ], title='')]
 ]
@@ -168,8 +154,8 @@ coefficientsFrame = [
 # Values
 valuesFrame = [
     [sg.Frame(layout=[
-        [sg.Text('Constant (k)', size=defaultSize),
-                 sg.InputText(key='-k-', size=defaultSize)],
+        # [sg.Text('Constant (k)', size=defaultSize),
+        #          sg.InputText(key='-k-', size=defaultSize)],
         [sg.Text('Delay (d)', size=defaultSize),
                  sg.InputText(key='-d-', size=defaultSize)],
         # [sg.Text("\u03F4'", size=defaultSize), sg.InputText(
@@ -183,8 +169,8 @@ valuesFrame = [
 # Constant Values for Models
 functionValues = [
     [sg.Frame(layout=[
-        [sg.Text('Time Constant (\u03C4)', size=defaultSize),
-                 sg.InputText(key='-tau-', size=defaultSize)],
+        # [sg.Text('Time Constant (\u03C4)', size=defaultSize),
+        #          sg.InputText(key='-tau-', size=defaultSize)],
         [sg.Text('m[k]'), sg.InputText(key='-mk-', size=defaultSize)],
         [sg.Text('Input Disturbance', size=defaultSize),
                  sg.InputText(key='-inputD-', size=defaultSize)],
@@ -262,13 +248,14 @@ while True:
         showPlot = True
 
         # We store any values that the user has given
-        if values['-k-'] is not None: k = values['-k-']
-        T = values['-T-']
-        tau = values['-tau-']
-        inDist = values['-inputD-']
-        outDist = values['-outputD-']
-        d = values['-d-']
-        mk = values['-mk-']
+        if isARX:
+            if values['-k-'] is not KeyError: k = values['-k-']
+            T = values['-T-']
+            if values['-tau-'] is not KeyError: tau = values['-tau-']
+            inDist = values['-inputD-']
+            outDist = values['-outputD-']
+            d = values['-d-']
+            mk = values['-mk-']
 
         # Calcualte others based on case
         if isFOM == True:
@@ -285,7 +272,7 @@ while True:
             zeta = values['-zeta-']
             a = wn * zeta
             b = wn * sqrt(1 - zeta**2)
-            d = trun(tPrime / T)
+            d = trunc(tPrime / T)
             a1 = (2*e**(2*a*T))*cos(b*T)
             a2 = e**(-2*a*T)
             b1 = k * (1 )
@@ -306,7 +293,7 @@ while True:
             print(mn)
             v+=1
 
-        delay = float(d)
+        delay = int(d)
         for k in range(kMax):
             cn[k] = (a1*cn[k + 1]) + (a2*cn[k + 2]) + (a3*cn[k + 3]) + (a4*cn[k + 4])
             + (b0*mn[k + delay]) + (b1*mn[k + 1 + delay]) + (b2*mn[k + 2 + delay]) + (b3*mn[k + 3 + delay]) + (b4*mn[k + 4 + delay])
@@ -318,20 +305,15 @@ while True:
         plt.grid()
         fig.add_subplot(111).plot(plt.show())
 
-
     if values['-mk-'] == None:
         print('Updating mn...')
         print('\ntempM')
         mn.append(tempM)
     
     if values['-ARX-']:
-        print('return to original layout')
-
-    if values['-SOM-']:
-
         # Coefficients
         coefficientsFrame = [
-        [sg.Frame(layout=[
+            [sg.Frame(layout=[
                 [sg.Text('a')],
                 *[[sg.Text('a' + str(i)), sg.InputText(key='-a-' + str(i)), ] for i in (n+1 for n in range(4))],
                 [sg.Text('b')],
@@ -342,10 +324,66 @@ while True:
         # Values
         valuesFrame = [
             [sg.Frame(layout=[
+                [sg.Text('Delay (d)', size=defaultSize), sg.InputText(key='-d-', size=defaultSize)],
+                [sg.Text('Time Interval (T)', size=defaultSize), sg.InputText(key='-T-', size=defaultSize)],
+                [sg.Text('k Max:'), sg.InputText(key='-kMax-', size=defaultSize)]
+            ], title='')]
+        ]
+
+        # Constant Values for Models
+        functionValues = [
+            [sg.Frame(layout=[
+                [sg.Text('m[k]'), sg.InputText(key='-mk-', size=defaultSize)],
+                [sg.Text('Input Disturbance', size=defaultSize), sg.InputText(key='-inputD-', size=defaultSize)],
+                [sg.Text('Output Disturbance', size=defaultSize), sg.InputText(key='-outputD-', size=defaultSize)]
+            ], title='')]
+        ]
+
+        # Menu
+        models = [
+            [sg.Radio('Model ARX', key='-ARX-', group_id='models', enable_events=True, default=True),
+            sg.Radio('First Order Model', key='-FOM-', group_id='models', enable_events=True),
+            sg.Radio('Second Order Low Damp Model', key='-SOM-', group_id='models', enable_events=True)]
+        ]
+
+        # Buttons
+        buttons = [
+            [sg.Button('Plot'), sg.Button('Close')]
+        ]
+
+        # Define the Layout
+        layout = [
+            # Canvas
+            [sg.Text('Discrete Control Model Grapher')],
+            [sg.Canvas(key='-CANVAS-')],
+            # Coefficients
+            [sg.Frame('Coefficients', coefficientsFrame, pad=(0, (14, 5)), key='Hide')],
+            # Input Values
+            [sg.Frame('Values', valuesFrame, pad=(0, 5)), sg.Frame(
+            '', functionValues, pad=(0, (14, 5)), key='Hide')],
+            # Event Buttons and Menu
+            [sg.Frame('Menu', models)], [sg.Frame('', buttons)]
+        ]
+
+    if values['-SOM-']:
+
+        # Coefficients
+        coefficientsFrame = [
+        [sg.Frame(layout=[
+                [sg.Text('a')],
+                [sg.Text('a1 = 2*e^(-a*T)*cos(b*T)')]
+                [sg.Text('e^(-2*a*T)')]
+                [sg.Text('b')],
+                [sg.Text('b1 = k*[1-e^(-a*T)*cos(b*T) - (a/b)*e^(-a*T)*sin(b*T)]')],
+                [sg.Text('b2 = k*[e^(-2*a*T) + (a/b)*e^(-a*T)*cos(b*T)]')]
+            ], title='')]
+        ]
+
+        # Values
+        valuesFrame = [
+            [sg.Frame(layout=[
                 [sg.Text('Constant (k)', size=defaultSize),
                 sg.InputText(key='-k-', size=defaultSize)],
-                [sg.Text('Delay (d)', size=defaultSize),
-                sg.InputText(key='-d-', size=defaultSize)],
                 [sg.Text("\u03F4'", size=defaultSize), sg.InputText(
                 key='-tPrime-', size=defaultSize)],
                 [sg.Text('Time Interval (T)', size=defaultSize),
@@ -361,13 +399,7 @@ while True:
         # Constant Values for Models
         functionValues = [
             [sg.Frame(layout=[
-                [sg.Text('Time Constant (\u03C4)', size=defaultSize),
-                sg.InputText(key='-tau-', size=defaultSize)],
                 [sg.Text('m[k]'), sg.InputText(key='-mk-', size=defaultSize)],
-                [sg.Text('Input Disturbance', size=defaultSize),
-                sg.InputText(key='-inputD-', size=defaultSize)],
-                [sg.Text('Output Disturbance', size=defaultSize),
-                sg.InputText(key='-outputD-', size=defaultSize)]
             ], title='')]
         ]
 
@@ -375,7 +407,7 @@ while True:
         models = [
             [sg.Radio('Model ARX', key='-ARX-', group_id='models', enable_events=True),
             sg.Radio('First Order Model', key='-FOM-', group_id='models', enable_events=True),
-            sg.Radio('Second Order Low Damp Model', key='-SOM-', group_id='models', enable_events=True)]
+            sg.Radio('Second Order Low Damp Model', key='-SOM-', group_id='models', enable_events=True, default=True)]
         ]
 
         # Buttons
@@ -389,7 +421,7 @@ while True:
             [sg.Text('Discrete Control Model Grapher')],
             [sg.Canvas(key='-CANVAS-')],
             # Coefficients and table
-            [sg.Frame('Coefficients', coefficientsFrame, pad=(0, (14, 5)), key='Hide')],
+            #[sg.Frame('Coefficients', coefficientsFrame, pad=(0, (14, 5)), key='Hide')],
             # Input Values
             [sg.Frame('Values', valuesFrame, pad=(0, 5)), sg.Frame(
                 '', functionValues, pad=(0, (14, 5)), key='Hide')],
@@ -412,9 +444,10 @@ while True:
         coefficientsFrame = [
             [sg.Frame(layout=[
                 [sg.Text('a')],
-                *[[sg.Text('a' + str(i)), sg.InputText(key='-a' + str(i) + '-'), ] for i in (n+2 for n in range(4))],
+                [sg.Text('a1 = e^(-T/𝜏)')],
                 [sg.Text('b')],
-                *[[sg.Text('b' + str(i)), sg.InputText(key='-b' + str(i) + '-'), ] for i in (n+3 for n in range(4))],
+                [sg.Text('b1 = k*[1 - e^(-m*T/' + '𝜏' + ')]')],
+                [sg.Text('b2 = k*[e^(-m*T/𝜏) - a1]')]
             ], title='')]
         ]
 
@@ -423,10 +456,6 @@ while True:
             [sg.Frame(layout=[
                 [sg.Text('Constant (k)', size=defaultSize),
                 sg.InputText(key='-k-', size=defaultSize)],
-                [sg.Text('Delay (d)', size=defaultSize),
-                sg.InputText(key='-d-', size=defaultSize)],
-                [sg.Text("\u03F4", size=defaultSize), sg.InputText(
-                key='-theta-', size=defaultSize)],
                 [sg.Text("\u03F4'", size=defaultSize), sg.InputText(
                 key='-tPrime-', size=defaultSize)],
                 [sg.Text('Time Interval (T)', size=defaultSize),
@@ -438,20 +467,16 @@ while True:
         # Constant Values for Models
         functionValues = [
             [sg.Frame(layout=[
-                [sg.Text('Time Constant (\u03C4)', size=defaultSize),
+                [sg.Text('Time Constant (𝜏)', size=defaultSize),
                 sg.InputText(key='-tau-', size=defaultSize)],
                 [sg.Text('m[k]'), sg.InputText(key='-mk-', size=defaultSize)],
-                [sg.Text('Input Disturbance', size=defaultSize),
-                sg.InputText(key='-inputD-', size=defaultSize)],
-                [sg.Text('Output Disturbance', size=defaultSize),
-                sg.InputText(key='-outputD-', size=defaultSize)]
             ], title='')]
         ]
 
         # Menu
         models = [
             [sg.Radio('Model ARX', key='-ARX-', group_id='models', enable_events=True),
-            sg.Radio('First Order Model', key='-FOM-', group_id='models', enable_events=True),
+            sg.Radio('First Order Model', key='-FOM-', group_id='models', enable_events=True, default=True),
             sg.Radio('Second Order Low Damp Model', key='-SOM-', group_id='models', enable_events=True)]
         ]
 
