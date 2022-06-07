@@ -48,6 +48,9 @@ d = 0 # Delay
 m = 0 # Modified Z Transform
 zeta = 0
 wn = 0
+kc = 0 # Controller
+tauI = 0 # Integrador
+tauD = 0 # Derivator
 kMax = 10
 
 # Coefficients (Maximum 4 per coefficient)
@@ -65,18 +68,22 @@ b2 = 0
 b3 = 0
 b4 = 0
 
-an = []
-bn = []
+beta0 = 0
+beta1 = 0
+beta2 = 0
 
 # Result lists
 cn = []
 mn = []
+mc = []
+err = []
 tempM = 0
 
 # Case Control Flags
 isARX  = True
 isFOM = False
 isSOM = False
+isAutomatic = False
 
 # Function to draw Graph
 def draw_figure(canvas, figure):
@@ -88,26 +95,6 @@ def draw_figure(canvas, figure):
 
 ################### Plant Control Discrete Equivalent Model ###################
 
-# Case Determiner
-def case(d, T):
-    tPrime = d*T
-
-    if tPrime % T == 0:
-        # Case 1: tPrime is multiple of T
-        return True
-    else:
-        # Case 2: there's a delay theta
-        return False
-
-# Theta
-def t(tPrime, T, d):
-    return tPrime-(d*T)
-
-# Theta Prime
-def tPrime(t, T, d):
-    return t+(d*T)
-
-# Modified Z
 def m(t, T):
     return 1 - (t / T)
 
@@ -183,7 +170,8 @@ functionValues = [
 models = [
     [sg.Radio('Model ARX', key='-ARX-', group_id='models', enable_events=True, default=True),
     sg.Radio('First Order Model', key='-FOM-', group_id='models', enable_events=True),
-    sg.Radio('Second Order Low Damp Model', key='-SOM-', group_id='models', enable_events=True)]
+    sg.Radio('Second Order Low Damp Model', key='-SOM-', group_id='models', enable_events=True),
+    sg.Radio('Automatic', key='-CTRL-', group_id='models', enable_events=True)]
 ]
 
 # Buttons
@@ -216,20 +204,20 @@ window = sg.Window(
 ).Layout(layout).Finalize()  # Window Layout
 
 # # Graph
-fig = matplotlib.figure.Figure(figsize=(5, 4), dpi=100)
+#fig = matplotlib.figure.Figure(figsize=(5, 4), dpi=100)
 
 # Define Transfer Function
-num = np.array([2])
-den = np.array([3, 1])
+# num = np.array([2])
+# den = np.array([3, 1])
 
-H = signal.TransferFunction(num, den)
-t, y = signal.step(H)
+# H = signal.TransferFunction(num, den)
+# t, y = signal.step(H)
 
-plt.plot(t, y)
-plt.title('Step Response')
-plt.xlabel('t')
-plt.ylabel('y')
-plt.grid()
+# plt.plot(t, y)
+# plt.title('Step Response')
+# plt.xlabel('t')
+# plt.ylabel('y')
+# plt.grid()
 
 # fig.add_subplot(111).plot(plt.show())
 
@@ -247,35 +235,51 @@ while True:
     if event == 'Plot':
         showPlot = True
 
-        # We store any values that the user has given
+        print(values)
+        # We store any values that the user has given depending on the mode 
         if isARX:
-            if values['-k-'] is not KeyError: k = values['-k-']
-            T = values['-T-']
-            if values['-tau-'] is not KeyError: tau = values['-tau-']
-            inDist = values['-inputD-']
-            outDist = values['-outputD-']
-            d = values['-d-']
-            mk = values['-mk-']
-
-        # Calcualte others based on case
-        if isFOM == True:
-            tPrime = values['-tPrime-']
+            T = float(values['-T-'])
+            #tau = float(values['-tau-'])
+            inDist = float(values['-inputD-'])
+            outDist = float(values['-outputD-'])
+            d = int(values['-d-'])
+            mk = int(values['-mk-'])
+        elif isFOM == True:
+            tPrime = float(values['-tPrime-'])
+            T = float(values['-T-'])
+            tau = float(values['-tau-'])
+            t = float(values['-t-'])
+            m = 1 - (t/T)
             a1 = e**(-T/tau)
             b1 = k * (1 - (e**(-m*T / tau)))
             b2 = k * ((e**(-m*T / tau)) - a1)
             d = trunc(tPrime / T)
             t = t(tPrime, T, d)
-            m = 1 - (t / T)
         elif isSOM == True:
-            tPrime = values['-tPrime-']
-            wn = values['-naturalFreq-']
-            zeta = values['-zeta-']
+            k = int(values['-k-'])
+            tPrime = float(values['-tPrime-'])
+            wn = float(values['-naturalFreq-'])
+            zeta = float(values['-zeta-'])
             a = wn * zeta
-            b = wn * sqrt(1 - zeta**2)
-            d = trunc(tPrime / T)
+            try: 
+                b = wn * sqrt(1 - zeta**2) 
+            except ZeroDivisionError: 
+                b = 0
+            try:
+                d = trunc(tPrime / T)
+            except ZeroDivisionError:
+                d = 0
             a1 = (2*e**(2*a*T))*cos(b*T)
             a2 = e**(-2*a*T)
             b1 = k * (1 )
+        elif isAutomatic:
+            tauD = float(values['-tauD-'])
+            tauI = float(values['-tauI-'])
+            kc = float(values['-kC-'])
+            T = float(values['-T-'])
+            beta0 = kc*(1 + (T/tauI) + (tauD/T))
+            beta1 = kc*(-1 - (2*tauD/T))
+            beta2 = kc*(tauD/T)
 
         # num = np.array([12])
         # den = np.array([3, 1])
@@ -288,29 +292,48 @@ while True:
                 cn.append(0)
             if (i + int(d) + v) > len(mn):
                 mn.append(float(mk))
-            print(v)
-            print(cn)
-            print(mn)
             v+=1
 
         delay = int(d)
-        for k in range(kMax):
+        k = 0
+        lim = k + d + 4
+        #while ((k + 4 + delay) < len(mn)) and ((k + 4) < len(cn)):
+        for k in range(lim):
             cn[k] = (a1*cn[k + 1]) + (a2*cn[k + 2]) + (a3*cn[k + 3]) + (a4*cn[k + 4])
             + (b0*mn[k + delay]) + (b1*mn[k + 1 + delay]) + (b2*mn[k + 2 + delay]) + (b3*mn[k + 3 + delay]) + (b4*mn[k + 4 + delay])
-        print(cn)
-        t, m = signal.step(H)
-        plt.plot(t, m)
-        plt.xlabel('t')
-        plt.ylabel('m[k]')
+            k+=1
+
+        if isAutomatic:
+            for k in range(kMax):
+                err[k] = mn[k] - cn[k]
+            for k in range(kMax):
+                mc[k] = mn[k+1] + (beta0*err[k]) + (beta1*err[k+1]) + (beta2*err[k+2])
+
+        # t, m = signal.step(H)
+        # plt.plot(t, m)
+        # plt.xlabel('t')
+        # plt.ylabel('m[k]')
+        fig = matplotlib.figure.Figure(figsize=(5, 4), dpi=100)
+        discretemodel = np.array(cn)
+        kAxis = np.arange(kMax)
+        H = signal.TransferFunction(discretemodel,kAxis)
+        c, k = signal.step(H)
+        plt.plot(c, k)
+        plt.xlabel('k')
+        plt.ylabel('cn')
         plt.grid()
         fig.add_subplot(111).plot(plt.show())
+        draw_figure(window['-CANVAS-'].TKCanvas, fig)
 
     if values['-mk-'] == None:
-        print('Updating mn...')
-        print('\ntempM')
         mn.append(tempM)
     
     if values['-ARX-']:
+        isARX = True
+        isFOM = False
+        isAutomatic = False
+        isSOM = False
+
         # Coefficients
         coefficientsFrame = [
             [sg.Frame(layout=[
@@ -343,7 +366,8 @@ while True:
         models = [
             [sg.Radio('Model ARX', key='-ARX-', group_id='models', enable_events=True, default=True),
             sg.Radio('First Order Model', key='-FOM-', group_id='models', enable_events=True),
-            sg.Radio('Second Order Low Damp Model', key='-SOM-', group_id='models', enable_events=True)]
+            sg.Radio('Second Order Low Damp Model', key='-SOM-', group_id='models', enable_events=True),
+            sg.Radio('Automatic', key='-CTRL-', group_id='models', enable_events=True)]
         ]
 
         # Buttons
@@ -366,13 +390,17 @@ while True:
         ]
 
     if values['-SOM-']:
+        isARX = False
+        isFOM = False
+        isAutomatic = False
+        isSOM = True
 
         # Coefficients
         coefficientsFrame = [
         [sg.Frame(layout=[
                 [sg.Text('a')],
-                [sg.Text('a1 = 2*e^(-a*T)*cos(b*T)')]
-                [sg.Text('e^(-2*a*T)')]
+                [sg.Text('a1 = 2*e^(-a*T)*cos(b*T)')],
+                [sg.Text('a2 = -e^(-2*a*T)')],
                 [sg.Text('b')],
                 [sg.Text('b1 = k*[1-e^(-a*T)*cos(b*T) - (a/b)*e^(-a*T)*sin(b*T)]')],
                 [sg.Text('b2 = k*[e^(-2*a*T) + (a/b)*e^(-a*T)*cos(b*T)]')]
@@ -392,14 +420,8 @@ while True:
                 [sg.Text('Zeta', size=defaultSize), 
                 sg.InputText(key='-zeta-', size=defaultSize)],
                 [sg.Text('Wn', size=defaultSize),
-                sg.InputText(key='-naturalFreq-', size=defaultSize)]
-            ], title='')]
-        ]
-
-        # Constant Values for Models
-        functionValues = [
-            [sg.Frame(layout=[
-                [sg.Text('m[k]'), sg.InputText(key='-mk-', size=defaultSize)],
+                sg.InputText(key='-naturalFreq-', size=defaultSize)],
+                [sg.Text('m[k]'), sg.InputText(key='-mk-', size=defaultSize)]
             ], title='')]
         ]
 
@@ -407,7 +429,8 @@ while True:
         models = [
             [sg.Radio('Model ARX', key='-ARX-', group_id='models', enable_events=True),
             sg.Radio('First Order Model', key='-FOM-', group_id='models', enable_events=True),
-            sg.Radio('Second Order Low Damp Model', key='-SOM-', group_id='models', enable_events=True, default=True)]
+            sg.Radio('Second Order Low Damp Model', key='-SOM-', group_id='models', enable_events=True, default=True),
+            sg.Radio('Automatic', key='-CTRL-', group_id='models', enable_events=True)]
         ]
 
         # Buttons
@@ -420,11 +443,8 @@ while True:
             # Canvas
             [sg.Text('Discrete Control Model Grapher')],
             [sg.Canvas(key='-CANVAS-')],
-            # Coefficients and table
-            #[sg.Frame('Coefficients', coefficientsFrame, pad=(0, (14, 5)), key='Hide')],
             # Input Values
-            [sg.Frame('Values', valuesFrame, pad=(0, 5)), sg.Frame(
-                '', functionValues, pad=(0, (14, 5)), key='Hide')],
+            [sg.Frame('Values', valuesFrame, pad=(0, 5))],
             # Event Buttons and Menu
             [sg.Frame('Menu', models)], [sg.Frame('', buttons)]
         ]
@@ -440,6 +460,10 @@ while True:
         window = windowTemp
 
     if values['-FOM-']:
+        isARX = False
+        isFOM = True
+        isAutomatic = False
+        isSOM = False
 
         coefficientsFrame = [
             [sg.Frame(layout=[
@@ -460,16 +484,9 @@ while True:
                 key='-tPrime-', size=defaultSize)],
                 [sg.Text('Time Interval (T)', size=defaultSize),
                 sg.InputText(key='-T-', size=defaultSize)],
-                [sg.Text('k Max:'), sg.InputText(key='-kMax-', size=defaultSize)]
-            ], title='')]
-        ]
-
-        # Constant Values for Models
-        functionValues = [
-            [sg.Frame(layout=[
-                [sg.Text('Time Constant (𝜏)', size=defaultSize),
-                sg.InputText(key='-tau-', size=defaultSize)],
-                [sg.Text('m[k]'), sg.InputText(key='-mk-', size=defaultSize)],
+                [sg.Text('k Max:'), sg.InputText(key='-kMax-', size=defaultSize)],
+                [sg.Text('Time Constant (𝜏)', size=defaultSize), sg.InputText(key='-tau-', size=defaultSize)],
+                [sg.Text('m[k]'), sg.InputText(key='-mk-', size=defaultSize)]
             ], title='')]
         ]
 
@@ -477,7 +494,80 @@ while True:
         models = [
             [sg.Radio('Model ARX', key='-ARX-', group_id='models', enable_events=True),
             sg.Radio('First Order Model', key='-FOM-', group_id='models', enable_events=True, default=True),
-            sg.Radio('Second Order Low Damp Model', key='-SOM-', group_id='models', enable_events=True)]
+            sg.Radio('Second Order Low Damp Model', key='-SOM-', group_id='models', enable_events=True),
+            sg.Radio('Automatic', key='-CTRL-', group_id='models', enable_events=True)]
+        ]
+
+        # Buttons
+        buttons = [
+            [sg.Button('Plot'), sg.Button('Close')]
+        ]
+
+        # Define the Layout
+        layout = [
+            # Canvas
+            [sg.Text('Discrete Control Model Grapher')],
+            [sg.Canvas(key='-CANVAS-')],
+            # Coefficients and table
+            [sg.Frame('Coefficients', coefficientsFrame, pad=(0, (14, 5)), key='Hide')],
+            # Input Values
+            [sg.Frame('Inputs', valuesFrame, pad=(0, 5))],
+            # Event Buttons and Menu
+            [sg.Frame('Menu', models)], [sg.Frame('', buttons)]
+        ]
+
+        windowTemp = sg.Window(
+            'Discrete Model Grapher',
+            location=(0, 0),
+            finalize=True,
+            element_justification='center',
+            font='Helvetica 18'
+        ).Layout(layout).Finalize()
+        window.Close()
+        window = windowTemp
+
+    if values['-CTRL-']:
+        isARX = False
+        isFOM = False
+        isAutomatic = True
+        isSOM = False
+
+        coefficientsFrame = [
+            [sg.Frame(layout=[
+                [sg.Text('β')],
+                [sg.Text('β0 = Kc*[1 + (T/𝜏i) + (𝜏d/T)]')],
+                [sg.Text('β1 = Kc*[-1 - (2*𝜏d/T)]')],
+                [sg.Text('β2 = Kc*[𝜏d/T]')]
+            ], title='')]
+        ]
+
+        valuesFrame = [
+            [sg.Frame(layout=[
+                [sg.Text('Controller (kc)', size=defaultSize),
+                sg.InputText(key='-kC-', size=defaultSize)],
+                [sg.Text('Time Interval (T)', size=defaultSize),
+                sg.InputText(key='-T-', size=defaultSize)],
+                [sg.Text('k Max:'), sg.InputText(key='-kMax-', size=defaultSize)]
+            ], title='')]
+        ]
+
+        # Constant Values for Models
+        functionValues = [
+            [sg.Frame(layout=[
+                [sg.Text('Integrator (𝜏):', size=defaultSize),
+                sg.InputText(key='-tauI-', size=defaultSize)],
+                [sg.Text('Derivator (𝜏):', size=defaultSize),
+                sg.InputText(key='-tauD-', size=defaultSize)],
+                [sg.Text('m[k]'), sg.InputText(key='-mk-', size=defaultSize)],
+            ], title='')]
+        ]
+
+        # Menu
+        models = [
+            [sg.Radio('Model ARX', key='-ARX-', group_id='models', enable_events=True),
+            sg.Radio('First Order Model', key='-FOM-', group_id='models', enable_events=True),
+            sg.Radio('Second Order Low Damp Model', key='-SOM-', group_id='models', enable_events=True),
+            sg.Radio('Automatic', key='-CTRL-', group_id='models', enable_events=True, default=True)]
         ]
 
         # Buttons
