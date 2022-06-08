@@ -12,16 +12,16 @@
 # Based on an Excel document, we need to preview how the graph will be.
 # The first delivery needs to receive inputs from User, and then be able to graph a first order ARX Model.
 
+from cProfile import label
 import control.matlab as control
 import scipy.signal as signal
 import matplotlib.pyplot as plt
 import PySimpleGUI as sg  # Graphic Interface Library
-import seaborn as sns  # Library for decorations
 import numpy as np  # Math Library
 import matplotlib  # Grapher Library
 
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from math import e, trunc, sqrt, cos
+from math import e, trunc, sqrt, cos, sin
 
 matplotlib.use('TkAgg')
 
@@ -51,7 +51,7 @@ wn = 0
 kc = 0 # Controller
 tauI = 0 # Integrador
 tauD = 0 # Derivator
-kMax = 10
+kMax = 0
 
 # Coefficients (Maximum 4 per coefficient)
 # If not given, value must be 0
@@ -93,34 +93,46 @@ def draw_figure(canvas, figure):
 
     return figure_canvas_agg
 
-################### Plant Control Discrete Equivalent Model ###################
+def cn_graph(input):
+    plt.plot(cn, input, color='blue', marker='o')
+    plt.scatter(cn, input)
+    plt.title('Response', fontsize=14)
+    plt.ylabel('c(k)')
+    plt.xlabel('k')
+    plt.grid(True)
+    plt.show()
 
-def m(t, T):
-    return 1 - (t / T)
+    return plt.gcf()
 
-# First Order Model ARX Process
-def FirstOrderModel():
-    # c(k)=a1*c(k-1) + ... + a4*c(k-4) + b0*m(k-d) + ... + b4*m(k-4-d)
-    return 0
+def error_graph(input):
+    plt.plot(err, input, color='red', marker='x')
+    plt.title('Error')
+    plt.ylabel('e(k)')
+    plt.xlabel('k')
+    plt.grid(True)
+    plt.show()
 
-# Transfer Function
-def HGp(cn, mn):
-    return cn/mn
+    return plt.gcf()
 
-# Difference Equations
+def mn_graph(input):
+    plt.plot(mn, input, color='black', marker='o')
+    plt.title('Input')
+    plt.ylabel('m(k)')
+    plt.xlabel('k')
+    plt.grid(True)
+    plt.show()
 
-# c[n] = a1*c[n-1] + b1*m[n-1-d]
-def PulseTransferFunction(kMax):
-    a1 = values['-a-1']
-    b1 = bn(T, tao, n)
+    return plt.gcf()
 
-    for n in kMax:
-        # If a value doesn't exists, we assume that it's 0
-        if cn[n-1] == None:
-            cn[n-1].append(0)
-        cn.append(a1*cn[n-1] + b1*cn[n-1-d])
+def mc_graph(input):
+    plt.plot(mc, input, color='purple', marker='o')
+    plt.title('Controller')
+    plt.ylabel('mc(k)')
+    plt.xlabel('k')
+    plt.grid(True)
+    plt.show()
 
-    return cn
+    return plt.gcf()
 
 # Theme and Styling
 sg.theme('DarkBlue')
@@ -141,23 +153,17 @@ coefficientsFrame = [
 # Values
 valuesFrame = [
     [sg.Frame(layout=[
-        # [sg.Text('Constant (k)', size=defaultSize),
-        #          sg.InputText(key='-k-', size=defaultSize)],
         [sg.Text('Delay (d)', size=defaultSize),
                  sg.InputText(key='-d-', size=defaultSize)],
-        # [sg.Text("\u03F4'", size=defaultSize), sg.InputText(
-        #     key='-tPrime-', size=defaultSize)],
         [sg.Text('Time Interval (T)', size=defaultSize),
                  sg.InputText(key='-T-', size=defaultSize)],
-        [sg.Text('k Max:'), sg.InputText(key='-kMax-', size=defaultSize)]
+        [sg.Text('k Max:'), sg.InputText(key='-kMax-', size=defaultSize)],
     ], title='')]
 ]
 
 # Constant Values for Models
 functionValues = [
     [sg.Frame(layout=[
-        # [sg.Text('Time Constant (\u03C4)', size=defaultSize),
-        #          sg.InputText(key='-tau-', size=defaultSize)],
         [sg.Text('m[k]'), sg.InputText(key='-mk-', size=defaultSize)],
         [sg.Text('Input Disturbance', size=defaultSize),
                  sg.InputText(key='-inputD-', size=defaultSize)],
@@ -203,27 +209,6 @@ window = sg.Window(
     size=(800, 800)
 ).Layout(layout).Finalize()  # Window Layout
 
-# # Graph
-#fig = matplotlib.figure.Figure(figsize=(5, 4), dpi=100)
-
-# Define Transfer Function
-# num = np.array([2])
-# den = np.array([3, 1])
-
-# H = signal.TransferFunction(num, den)
-# t, y = signal.step(H)
-
-# plt.plot(t, y)
-# plt.title('Step Response')
-# plt.xlabel('t')
-# plt.ylabel('y')
-# plt.grid()
-
-# fig.add_subplot(111).plot(plt.show())
-
-# Add plot to the window
-# draw_figure(window['-CANVAS-'].TKCanvas, fig)
-
 # Create an event loop
 while True:
     event, values = window.read()
@@ -235,31 +220,47 @@ while True:
     if event == 'Plot':
         showPlot = True
 
-        print(values)
         # We store any values that the user has given depending on the mode 
         if isARX:
             T = float(values['-T-'])
-            #tau = float(values['-tau-'])
             inDist = float(values['-inputD-'])
             outDist = float(values['-outputD-'])
             d = int(values['-d-'])
             mk = int(values['-mk-'])
+            a1 = float(values['-a-1'])
+            a2 = float(values['-a-2'])
+            a3 = float(values['-a-3'])
+            a4 = float(values['-a-3'])
+            b0 = float(values['-b-0'])
+            b1 = float(values['-b-1'])
+            b2 = float(values['-b-2'])
+            b3 = float(values['-b-3'])
+            #b4 = float(values['-b-4'])
+            kMax = int(values['-kMax-'])
         elif isFOM == True:
             tPrime = float(values['-tPrime-'])
             T = float(values['-T-'])
             tau = float(values['-tau-'])
-            t = float(values['-t-'])
             m = 1 - (t/T)
-            a1 = e**(-T/tau)
-            b1 = k * (1 - (e**(-m*T / tau)))
-            b2 = k * ((e**(-m*T / tau)) - a1)
             d = trunc(tPrime / T)
-            t = t(tPrime, T, d)
+            t = tPrime - (d*T)
+            mk = int(values['-mk-'])
+            kMax = int(values['-kMax-'])
+            a1 = e**(-T / tau)
+            a2 = 0
+            a3 = 0
+            a4 = 0
+            b0 = 0
+            b1 = k*(1 - e**(-m*T/tau))
+            b2 = k*(e**(-m*T/tau) - e**(-T/tau))
+            b3 = 0
+            b4 = 0
         elif isSOM == True:
             k = int(values['-k-'])
             tPrime = float(values['-tPrime-'])
             wn = float(values['-naturalFreq-'])
             zeta = float(values['-zeta-'])
+            mk = int(values['-mk-'])
             a = wn * zeta
             try: 
                 b = wn * sqrt(1 - zeta**2) 
@@ -271,62 +272,71 @@ while True:
                 d = 0
             a1 = (2*e**(2*a*T))*cos(b*T)
             a2 = e**(-2*a*T)
-            b1 = k * (1 )
+            a3 = 0
+            a4 = 0
+            b0 = 0
+            b1 = k * (1 - (e**(-a*T))*cos(b*T)- (a/b)*e**(-a*T)*sin(b*T))
+            b2 = k * ((e**(-a*T)) + (a/b)*e**(-a*T)*sin(b*T) - (e**(-a*T))*cos(b*T))
+            kMax = int(values['-kMax-'])
         elif isAutomatic:
             tauD = float(values['-tauD-'])
             tauI = float(values['-tauI-'])
             kc = float(values['-kC-'])
             T = float(values['-T-'])
+            mk = int(values['-mk-'])
             beta0 = kc*(1 + (T/tauI) + (tauD/T))
             beta1 = kc*(-1 - (2*tauD/T))
             beta2 = kc*(tauD/T)
+            kMax = int(values['-kMax-'])
+            a1 = float(values['-a-1'])
+            b0 = float(values['-b-0'])
+            b1 = float(values['-b-1'])
 
-        # num = np.array([12])
-        # den = np.array([3, 1])
-
-        # H = signal.TransferFunction(num, den)
         tempM = mk
         v = 0
         for i in range(kMax):
-            if (i + v) > len(cn):
-                cn.append(0)
-            if (i + int(d) + v) > len(mn):
-                mn.append(float(mk))
-            v+=1
+            mn.append(float(mk))
 
+        # All values before mk are 0 for cn
+        cn.extend([0]*mk)
         delay = int(d)
         k = 0
-        lim = k + d + 4
-        #while ((k + 4 + delay) < len(mn)) and ((k + 4) < len(cn)):
+        lim = kMax - d - 4
+        #while k < lim:
         for k in range(lim):
-            cn[k] = (a1*cn[k + 1]) + (a2*cn[k + 2]) + (a3*cn[k + 3]) + (a4*cn[k + 4])
-            + (b0*mn[k + delay]) + (b1*mn[k + 1 + delay]) + (b2*mn[k + 2 + delay]) + (b3*mn[k + 3 + delay]) + (b4*mn[k + 4 + delay])
+            cn.append((a1*cn[k + 1]) + (a2*cn[k + 2]) + (a3*cn[k + 3]) + (a4*cn[k + 4]) + (b0*mn[k + delay]) + (b1*mn[k + 1 + delay]) + (b2*mn[k + 2 + delay]) + (b3*mn[k + 3 + delay]) + (b4*mn[k + 4 + delay]))
             k+=1
 
         if isAutomatic:
-            for k in range(kMax):
-                err[k] = mn[k] - cn[k]
-            for k in range(kMax):
-                mc[k] = mn[k+1] + (beta0*err[k]) + (beta1*err[k+1]) + (beta2*err[k+2])
+            errLim = 0
+            for k in range(kMax - 1):
+                err.append(mn[k] - cn[k])
 
-        # t, m = signal.step(H)
-        # plt.plot(t, m)
-        # plt.xlabel('t')
-        # plt.ylabel('m[k]')
-        fig = matplotlib.figure.Figure(figsize=(5, 4), dpi=100)
-        discretemodel = np.array(cn)
-        kAxis = np.arange(kMax)
-        H = signal.TransferFunction(discretemodel,kAxis)
-        c, k = signal.step(H)
-        plt.plot(c, k)
-        plt.xlabel('k')
-        plt.ylabel('cn')
-        plt.grid()
-        fig.add_subplot(111).plot(plt.show())
-        draw_figure(window['-CANVAS-'].TKCanvas, fig)
+            for k in range(lim):
+                mc.append(mn[k+1] + (beta0*err[k]) + (beta1*err[k+1]) + (beta2*err[k+2]))
 
-    if values['-mk-'] == None:
-        mn.append(tempM)
+        if not isAutomatic:
+            plt.plot(cn, list(np.arange(1, len(cn) + 1)), color='blue', marker='o', label='c(k)')
+            plt.scatter(cn, list(np.arange(1, len(cn) + 1)))
+            plt.plot(mn, list(np.arange(1, len(mn) + 1)), color='black', marker='o', label='m(k)')
+            plt.ylabel('k')
+            plt.title('Manual Control')
+            plt.legend()
+            plt.show()
+            fig = plt.gcf()
+            draw_figure(window['-CANVAS-'].TKCanvas, fig)        
+        else:
+            plt.plot(cn, list(np.arange(1, len(cn) + 1)), color='blue', marker='o', label='c(k)')
+            plt.scatter(cn, list(np.arange(1, len(cn) + 1)))
+            plt.plot(err, list(np.arange(1, len(err) + 1)), color='red', marker='x', label='e(k)')
+            plt.plot(mn, list(np.arange(1, len(mn) + 1)), color='black', marker='o', label='m(k)')
+            plt.plot(mc, list(np.arange(1, len(mc) + 1)), color='purple', marker='o', label='mc(k)')
+            plt.ylabel('k')
+            plt.title('Automatic Control')
+            plt.legend()
+            plt.show()
+            fig = plt.gcf()
+            draw_figure(window['-CANVAS-'].TKCanvas, fig)
     
     if values['-ARX-']:
         isARX = True
@@ -349,7 +359,8 @@ while True:
             [sg.Frame(layout=[
                 [sg.Text('Delay (d)', size=defaultSize), sg.InputText(key='-d-', size=defaultSize)],
                 [sg.Text('Time Interval (T)', size=defaultSize), sg.InputText(key='-T-', size=defaultSize)],
-                [sg.Text('k Max:'), sg.InputText(key='-kMax-', size=defaultSize)]
+                [sg.Text('k Max:'), sg.InputText(key='-kMax-', size=defaultSize)],
+                [sg.Text('Constant (k)', size=defaultSize), sg.InputText(key='-k-', size=defaultSize)]
             ], title='')]
         ]
 
@@ -537,7 +548,11 @@ while True:
                 [sg.Text('β')],
                 [sg.Text('β0 = Kc*[1 + (T/𝜏i) + (𝜏d/T)]')],
                 [sg.Text('β1 = Kc*[-1 - (2*𝜏d/T)]')],
-                [sg.Text('β2 = Kc*[𝜏d/T]')]
+                [sg.Text('β2 = Kc*[𝜏d/T]')],
+                [sg.Text('a')],
+                *[[sg.Text('a' + str(i)), sg.InputText(key='-a-' + str(i)), ] for i in (n+1 for n in range(1))],
+                [sg.Text('b')],
+                *[[sg.Text('b' + str(i)), sg.InputText(key='-b-' + str(i)), ] for i in range(2)],
             ], title='')]
         ]
 
